@@ -1,6 +1,6 @@
 {
-  "name": "Asset Inspector",
-  "id": "asset-inspector-dev",
+  "name": "Assets Inspector",
+  "id": "assets-inspector-dev",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",

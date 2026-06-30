@@ -1,3 +1,27 @@
+// ─────────────────────────────────────────────────────────────
+// PLUGIN MESSAGE FLOW
+// ─────────────────────────────────────────────────────────────
+//
+// 1. code.js scans all pages and sends each asset to the UI
+//    code.js → UI: { type: 'asset', data: { nodeId, nodeName, page, sizeKB, bytes } }
+//
+// 2. code.js finishes scanning
+//    code.js → UI: { type: 'done' }
+//
+// 3. User clicks Compress — UI compresses bytes via Canvas and sends back
+//    UI → code.js: { type: 'compress', nodeId, bytes }
+//
+// 4. code.js replaces the fill in Figma and confirms with new size
+//    code.js → UI: { type: 'compressed', nodeId, newSizeKB }
+//
+// ─────────────────────────────────────────────────────────────
+// code.js sends  → UI   :  figma.ui.postMessage({ ... })
+// UI sends       → code.js :  parent.postMessage({ pluginMessage: { ... } }, '*')
+// UI receives      :  window.onmessage
+// code.js receives :  figma.ui.onmessage
+// ─────────────────────────────────────────────────────────────
+
+
 // Show the plugin UI at a fixed size
 figma.showUI(__html__, { width: 400, height: 600 });
 
@@ -60,6 +84,7 @@ async function scanAssets() {
 
 scanAssets();
 
+// figma.ui.onmessage is the listener in code.js
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'close') figma.closePlugin();
 
