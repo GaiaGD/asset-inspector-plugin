@@ -2,36 +2,49 @@
 // PLUGIN MESSAGE FLOW
 // ─────────────────────────────────────────────────────────────
 //
-// 1. code.js scans all pages and sends each asset to the UI
+// 1. User selects a slide and clicks Scan in the UI
+//    UI → code.js: { type: 'scan' }
+//
+// 2. code.js scans only the selected slide and sends each asset to the UI
 //    code.js → UI: { type: 'asset', data: { nodeId, nodeName, page, sizeKB, bytes } }
 //
-// 2. code.js finishes scanning
+// 3. code.js finishes scanning
 //    code.js → UI: { type: 'done' }
 //
-// 3. User clicks Compress — UI compresses bytes via Canvas and sends back
+// 4. User clicks Compress — UI compresses bytes via Canvas and sends back
 //    UI → code.js: { type: 'compress', nodeId, bytes }
 //
-// 4. code.js replaces the fill in Figma and confirms with new size
+// 5. code.js replaces the fill in Figma and confirms with new size
 //    code.js → UI: { type: 'compressed', nodeId, newSizeKB }
 //
 // ─────────────────────────────────────────────────────────────
-// code.js sends  → UI   :  figma.ui.postMessage({ ... })
-// UI sends       → code.js :  parent.postMessage({ pluginMessage: { ... } }, '*')
-// UI receives      :  window.onmessage
-// code.js receives :  figma.ui.onmessage
+// code.js sends  → UI      : figma.ui.postMessage({ ... })
+// UI sends       → code.js : parent.postMessage({ pluginMessage: { ... } }, '*')
+// UI receives    : window.onmessage
+// code.js receives : figma.ui.onmessage
 // ─────────────────────────────────────────────────────────────
-
 
 // Show the plugin UI at a fixed size
 figma.showUI(__html__, { width: 400, height: 600 });
 
 async function scanAssets() {
-  // Loop through every page in the file
-  for (const page of figma.root.children) {
-    // Get every node on this page (frames, images, shapes, etc.)
-    const nodes = page.findAll();
+  // Read the current selection in Figma
+  const selection = figma.currentPage.selection;
 
-    for (const node of nodes) {
+  // If nothing is selected, tell the UI and stop
+  if (selection.length === 0) {
+    figma.ui.postMessage({ type: 'error', message: 'No slide selected. Click on a slide first.' });
+    return;
+  }
+
+  // Scan all selected nodes — in Figma Slides each slide is a top-level frame
+  for (const selectedNode of selection) {
+    // Get all child nodes inside the selected slide
+    // Also include the selected node itself in case it has fills directly
+    const children = 'findAll' in selectedNode ? selectedNode.findAll() : [];
+    const allNodes = [selectedNode, ...children];
+
+    for (const node of allNodes) {
       // Skip nodes that can't have fills (e.g. groups, connectors)
       if (!('fills' in node)) continue;
 
@@ -51,7 +64,7 @@ async function scanAssets() {
                 type: 'image',
                 nodeId: node.id,
                 nodeName: node.name,
-                page: page.name,
+                page: figma.currentPage.name,
                 hash: fill.imageHash,
                 sizeKB: Math.round(bytes.length / 1024),
                 bytes: Array.from(bytes) // Convert Uint8Array to plain array for postMessage
@@ -70,7 +83,7 @@ async function scanAssets() {
               type: 'video',
               nodeId: node.id,
               nodeName: node.name,
-              page: page.name
+              page: figma.currentPage.name
             }
           });
         }
@@ -82,14 +95,12 @@ async function scanAssets() {
   figma.ui.postMessage({ type: 'done' });
 }
 
-scanAssets();
-
 // figma.ui.onmessage is the listener in code.js
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'close') figma.closePlugin();
 
-  // Rescan button clicked in UI
-  if (msg.type === 'rescan') scanAssets();
+  // Scan button clicked in UI — scan the current selection
+  if (msg.type === 'scan') scanAssets();
 
   if (msg.type === 'compress') {
     const { nodeId, bytes } = msg;

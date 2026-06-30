@@ -5,7 +5,7 @@
     * { box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; font-size: 13px; background: #333; color: #fff; }
     h2 { font-size: 14px; margin: 0 0 12px; }
-    #loading { color: #c7c7c7; margin-bottom: 8px; }
+    #status { color: #c7c7c7; margin-bottom: 8px; font-size: 12px; }
     .controls { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #4f4f4f; }
     .controls label { font-size: 12px; color: #c7c7c7; display: flex; align-items: center; gap: 6px; }
     select { font-size: 12px; padding: 4px; border-radius: 4px; border: none; background: #444; color: white; }
@@ -16,71 +16,51 @@
       width: 100%;
       background: transparent;
     }
-
-    /* Styles the track bar (Chrome, Safari, Edge) */
-    input[type="range"]::-webkit-slider-runnable-track {
-      background: #777777;
-      height: 1px;
-    }
-
-    /* Styles the draggable handle (Chrome, Safari, Edge) */
+    input[type="range"]::-webkit-slider-runnable-track { background: #777; height: 1px; }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 10px;
-      width: 10px;
+      height: 10px; width: 10px;
       border-radius: 50%;
       border: 1px solid #444;
       background: #a4a4a4;
-      margin-top: -4px; /* Centers thumb over track */
+      margin-top: -4px;
       cursor: pointer;
     }
-
-    /* Styles the track bar for Firefox */
-    input[type="range"]::-moz-range-track {
-      background: #4f4f4f;
-      height: 2px;
-    }
-
-    /* Styles the draggable handle for Firefox */
+    input[type="range"]::-moz-range-track { background: #4f4f4f; height: 2px; }
     input[type="range"]::-moz-range-thumb {
-      height: 10px;
-      width: 10px;
+      height: 10px; width: 10px;
       border-radius: 50%;
       border: 1px solid #444;
       background: #a4a4a4;
       cursor: pointer;
     }
 
-    /* Each asset row */
     .asset { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #4f4f4f; }
     .asset img { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; background: #444; flex-shrink: 0; }
     .video-thumb { width: 64px; height: 64px; border-radius: 4px; background: #222; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }
-
-    /* Info column: name + size row + slider */
     .info { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
     .name { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* Size row: original → estimated */
     .size-row { display: flex; align-items: center; gap: 6px; font-size: 11px; padding-bottom: 10px; }
     .original-size { color: #e05252; font-weight: 600; }
     .original-size.ok { color: #c7c7c7; }
     .arrow { color: #888; }
     .estimated-size { color: #c7c7c7; font-weight: 600; }
-
-    /* Per-image slider row */
     .slider-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #c7c7c7; }
     .quality-slider { width: 100px; }
     .quality-label { min-width: 30px; }
 
-    .compress-btn, .rescan-btn { padding: 4px 8px; font-size: 12px; color: white; background: transparent; border: 1px solid #4f4f4f; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-    .compress-btn:hover, .rescan-btn:hover { background: #444; }
-    .compress-btn:disabled, .rescan-btn:disabled { opacity: 0.4; cursor: default; }
+    .btn { padding: 4px 8px; font-size: 12px; color: white; background: transparent; border: 1px solid #4f4f4f; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .btn:hover { background: #444; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Idle state shown before first scan */
+    #idle { color: #888; font-size: 12px; padding: 24px 0; text-align: center; }
   </style>
 </head>
 <body>
   <h2>Asset Inspector</h2>
 
-  <!-- Global controls: format only — quality is now per-image -->
+  <!-- Controls: format selector + scan button -->
   <div class="controls">
     <label>Format:
       <select id="format" onchange="onFormatChange()">
@@ -88,10 +68,16 @@
         <option value="image/webp">WebP</option>
       </select>
     </label>
-    <button class="rescan-btn" onclick="rescan()">Rescan</button>
+    <button class="btn" onclick="scan()">Scan selected slide</button>
   </div>
 
-  <div id="loading">Scanning assets...</div>
+  <!-- Status line: shown while scanning or after -->
+  <div id="status" style="display:none"></div>
+
+  <!-- Idle prompt: shown before first scan -->
+  <div id="idle">Select a slide in Figma, then click Scan.</div>
+
+  <!-- Asset list: populated after scan -->
   <div id="list"></div>
 
   <!-- Hidden canvas for compression and estimation -->
@@ -136,13 +122,25 @@
       });
     }
 
+    // Triggers a scan of the current Figma selection
+    function scan() {
+      // Clear previous results
+      assets.length = 0;
+      document.getElementById('list').innerHTML = '';
+      document.getElementById('idle').style.display = 'none';
+      document.getElementById('status').style.display = 'block';
+      document.getElementById('status').textContent = 'Scanning...';
+
+      // Tell code.js to scan the current selection
+      parent.postMessage({ pluginMessage: { type: 'scan' } }, '*');
+    }
+
     // Called when the per-image quality slider moves
     // Debounces 300ms then estimates compressed size without touching Figma
     function onSliderChange(nodeId) {
       const estimatedEl = document.getElementById('estimated-' + nodeId);
       estimatedEl.textContent = '...';
 
-      // Cancel previous pending estimate for this image
       clearTimeout(debounceTimers[nodeId]);
 
       debounceTimers[nodeId] = setTimeout(async () => {
@@ -150,7 +148,6 @@
         const format = document.getElementById('format').value;
         const quality = parseInt(document.getElementById('slider-' + nodeId).value);
 
-        // Update the quality label next to the slider
         document.getElementById('label-' + nodeId).textContent = quality + '%';
 
         console.log(`Estimating size for ${asset.nodeName} at ${quality}% ${format}`);
@@ -200,7 +197,7 @@
 
         if (asset.type === 'image') assets.push(asset);
 
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('status').style.display = 'none';
         const list = document.getElementById('list');
         const div = document.createElement('div');
         div.className = 'asset';
@@ -225,13 +222,12 @@
                 <span class="quality-label" id="label-${asset.nodeId}">100%</span>
               </div>
             </div>
-            <button class="compress-btn" id="btn-${asset.nodeId}"
+            <button class="btn" id="btn-${asset.nodeId}"
               onclick="compressAsset(assets.find(a => a.nodeId === '${asset.nodeId}'))">
               Compress
             </button>
           `;
         } else {
-          // Videos: listed but not compressible
           div.innerHTML = `
             <div class="video-thumb">▶</div>
             <div class="info">
@@ -242,6 +238,13 @@
         }
 
         list.appendChild(div);
+      }
+
+      // No slide was selected when Scan was clicked
+      if (msg.type === 'error') {
+        document.getElementById('status').textContent = msg.message;
+        document.getElementById('status').style.display = 'block';
+        console.warn(msg.message);
       }
 
       // code.js confirmed compression — update the row
@@ -256,7 +259,6 @@
           btn.textContent = '✅ Done';
         }
 
-        // Update original size to reflect new reality, clear estimate
         if (assetEl) {
           const originalEl = assetEl.querySelector('.original-size');
           const estimatedEl = assetEl.querySelector('.estimated-size');
@@ -270,22 +272,11 @@
       // Scan finished
       if (msg.type === 'done') {
         console.log('Scan complete.');
-        document.getElementById('loading').textContent = 'Scan complete.';
-        document.getElementById('loading').style.display = 'block';
+        const count = assets.length;
+        document.getElementById('status').textContent = `Scan complete — ${count} image${count !== 1 ? 's' : ''} found.`;
+        document.getElementById('status').style.display = 'block';
       }
     };
-
-    function rescan() {
-      // Clear the asset list and reset state
-      assets.length = 0;
-      document.getElementById('list').innerHTML = '';
-      document.getElementById('loading').textContent = 'Scanning assets...';
-      document.getElementById('loading').style.display = 'block';
-
-      // Tell code.js to scan again
-      parent.postMessage({ pluginMessage: { type: 'rescan' } }, '*');
-    }
-
   </script>
 </body>
 </html>
