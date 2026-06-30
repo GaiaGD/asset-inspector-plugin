@@ -88,6 +88,9 @@ scanAssets();
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'close') figma.closePlugin();
 
+  // Rescan button clicked in UI
+  if (msg.type === 'rescan') scanAssets();
+
   if (msg.type === 'compress') {
     const { nodeId, bytes } = msg;
 

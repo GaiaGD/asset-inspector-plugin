@@ -10,7 +10,8 @@ Figma Slides stores images at their original uploaded resolution internally, eve
 
 - Scans all pages in a Figma file and lists every image with its file size
 - Flags videos (which can't be compressed via the Figma API) for visibility
-- Lets you compress images individually or all at once, directly inside Figma
+- Lets you compress images individually, directly inside Figma
+- Per-image quality slider with live size estimate before you commit
 - Shows the size before and after compression
 - No external tools, no downloading, no re-uploading
 
@@ -19,16 +20,16 @@ Figma Slides stores images at their original uploaded resolution internally, eve
 1. Open a Figma or Figma Slides file
 2. Run the plugin via Plugins → Asset Inspector
 3. Wait for the scan to complete — images appear with their sizes (red = over 500KB)
-4. Choose your output format (JPEG or WebP) and quality level
-5. Click **Compress** on individual images, or **Compress all images** for bulk
+4. Choose your output format (JPEG or WebP) at the top
+5. Move the quality slider on each image to preview the estimated output size
+6. When happy with the estimate, click **Compress**
 
-## Format and quality guide
+## Format guide
 
-| Setting | Use case |
+| Format | Use case |
 |---|---|
-| JPEG 80% | Good default — solid quality, significant size reduction |
-| JPEG 50% | Aggressive compression — noticeable on detailed images |
-| WebP 80% | Smaller than JPEG at same quality, not supported everywhere |
+| JPEG | Good default — widely supported, significant size reduction |
+| WebP | Smaller than JPEG at same quality — best for modern workflows |
 
 ## Limitations
 
