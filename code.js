@@ -102,6 +102,10 @@ figma.ui.onmessage = async (msg) => {
   // Scan button clicked in UI — scan the current selection
   if (msg.type === 'scan') scanAssets();
 
+  if (msg.type === 'resize') {
+    figma.ui.resize(msg.width, msg.height);
+  }
+
   if (msg.type === 'compress') {
     const { nodeId, bytes } = msg;
 
