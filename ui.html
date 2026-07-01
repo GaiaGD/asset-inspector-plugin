@@ -3,10 +3,10 @@
 <head>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; font-size: 13px; background: #333; color: #fff; }
+    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; font-size: 13px; background: #2b2b2b; color: #fff; }
     h2 { font-size: 14px; margin: 0 0 12px; }
     #status { color: #c7c7c7; margin-bottom: 8px; font-size: 12px; }
-    .controls { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #4f4f4f; }
+    .controls { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; padding: 12px; border-bottom: 1px solid #4f4f4f; background: #2b2b2b; }
     .controls label { font-size: 12px; color: #c7c7c7; display: flex; align-items: center; gap: 6px; }
     select { font-size: 12px; padding: 4px; border-radius: 4px; border: none; background: #444; color: white; }
 
@@ -55,6 +55,7 @@
 
     /* Idle state shown before first scan */
     #idle { color: #888; font-size: 12px; padding: 24px 0; text-align: center; }
+    #status { padding: 24px 0 0 0;}
   </style>
 </head>
 <body>
@@ -62,12 +63,6 @@
 
   <!-- Controls: format selector + scan button -->
   <div class="controls">
-    <label>Format:
-      <select id="format" onchange="onFormatChange()">
-        <option value="image/jpeg">JPEG</option>
-        <option value="image/webp">WebP</option>
-      </select>
-    </label>
     <button class="btn" onclick="scan()">Scan selected slide</button>
   </div>
 
@@ -102,7 +97,7 @@
     // Returns a Promise resolving with compressed bytes as plain array
     function compressBytes(bytes, format, quality) {
       return new Promise((resolve) => {
-        const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' });
+        const blob = new Blob([new Uint8Array(bytes)], { type: format });
         const url = URL.createObjectURL(blob);
         const img = new Image();
         img.onload = () => {
@@ -145,7 +140,7 @@
 
       debounceTimers[nodeId] = setTimeout(async () => {
         const asset = assets.find(a => a.nodeId === nodeId);
-        const format = document.getElementById('format').value;
+        const format = 'image/jpeg'; // Currently only JPEG is supported for compression
         const quality = parseInt(document.getElementById('slider-' + nodeId).value);
 
         document.getElementById('label-' + nodeId).textContent = quality + '%';
@@ -161,14 +156,9 @@
       }, 300);
     }
 
-    // When format changes globally, re-run estimates for all visible sliders
-    function onFormatChange() {
-      assets.forEach(asset => onSliderChange(asset.nodeId));
-    }
-
     // Compresses a single asset at its current slider quality and sends to code.js
     async function compressAsset(asset) {
-      const format = document.getElementById('format').value;
+      const format = 'image/jpeg'; // Currently only JPEG is supported for compression
       const quality = parseInt(document.getElementById('slider-' + asset.nodeId).value);
       const btn = document.getElementById('btn-' + asset.nodeId);
 
