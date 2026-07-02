@@ -237,7 +237,7 @@
       }
 
       // Expand plugin window, then show modal
-      parent.postMessage({ pluginMessage: { type: 'resize', width: 800, height: 560 } }, '*');
+      parent.postMessage({ pluginMessage: { type: 'resize', width: 1200, height: 1200 } }, '*');
       document.getElementById('modal').classList.add('open');
     }
 
@@ -348,9 +348,9 @@
             <!-- Quality slider + Preview + Compress buttons -->
             <div class="controls-row">
               <input type="range" id="slider-${asset.nodeId}"
-                min="10" max="100" value="80"
+                min="10" max="100" value="100"
                 oninput="onSliderChange('${asset.nodeId}')" />
-              <span class="quality-label" id="label-${asset.nodeId}">80%</span>
+              <span class="quality-label" id="label-${asset.nodeId}">100%</span>
               <button class="btn" onclick="openModal('${asset.nodeId}')">Preview</button>
               <button class="btn" id="btn-${asset.nodeId}"
                 onclick="compressAsset(assets.find(a => a.nodeId === '${asset.nodeId}'))">
