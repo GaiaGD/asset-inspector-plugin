@@ -2,20 +2,27 @@
 // PLUGIN MESSAGE FLOW
 // ─────────────────────────────────────────────────────────────
 //
-// 1. User selects a slide and clicks Scan in the UI
+// 1. User clicks Scan in the UI
 //    UI → code.js: { type: 'scan' }
 //
-// 2. code.js scans only the selected slide and sends each asset to the UI
-//    code.js → UI: { type: 'asset', data: { nodeId, nodeName, page, sizeKB, bytes } }
+// 2. code.js scans EVERY slide in the whole file and sends each image's
+//    METADATA only (no bytes — keeps a big deck from blowing up memory)
+//    code.js → UI: { type: 'asset', data: { assetKey, nodeId, fillIndex, nodeName, slideName, sizeKB } }
 //
 // 3. code.js finishes scanning
-//    code.js → UI: { type: 'done' }
+//    code.js → UI: { type: 'done', total }
 //
-// 4. User clicks Compress — UI compresses bytes via Canvas and sends back
-//    UI → code.js: { type: 'compress', nodeId, bytes }
+// 4. User interacts with a row (slider / preview / compress). The UI asks for
+//    the raw bytes of just that one image, on demand.
+//    UI → code.js: { type: 'getBytes', assetKey, nodeId, fillIndex }
+//    code.js → UI: { type: 'bytes', assetKey, bytes }
 //
-// 5. code.js replaces the fill in Figma and confirms with new size
-//    code.js → UI: { type: 'compressed', nodeId, newSizeKB }
+// 5. User clicks a row's image — jump to the slide that contains it
+//    UI → code.js: { type: 'navigate', nodeId }
+//
+// 6. User clicks Compress — UI compresses bytes via Canvas and sends back
+//    UI → code.js: { type: 'compress', assetKey, nodeId, fillIndex, bytes }
+//    code.js → UI: { type: 'compressed', assetKey, newSizeKB }
 //
 // ─────────────────────────────────────────────────────────────
 // code.js sends  → UI      : figma.ui.postMessage({ ... })
@@ -24,66 +31,94 @@
 // code.js receives : figma.ui.onmessage
 // ─────────────────────────────────────────────────────────────
 
-// Show the plugin UI at a fixed size
 figma.showUI(__html__, { width: 400, height: 600 });
 
-async function scanAssets() {
-  // Read the current selection in Figma
-  const selection = figma.currentPage.selection;
+// A stable key for one image fill on one node (a node can have several fills).
+function assetKeyFor(nodeId, fillIndex) {
+  return nodeId + ':' + fillIndex;
+}
 
-  // If nothing is selected, tell the UI and stop
-  if (selection.length === 0) {
-    figma.ui.postMessage({ type: 'error', message: 'No slide selected. Click on a slide first.' });
-    return;
+// Walk up the parent chain to find the Slide this node lives on.
+// Falls back to the containing page's name for non-Slides files.
+function findSlideName(node, page) {
+  let current = node;
+  while (current) {
+    if (current.type === 'SLIDE') return current.name;
+    current = current.parent;
+  }
+  return page ? page.name : '(unknown)';
+}
+
+// Look up a node by id, loading pages if needed. Works across the whole file.
+async function getNode(nodeId) {
+  if (figma.getNodeByIdAsync) return figma.getNodeByIdAsync(nodeId);
+  return figma.getNodeById(nodeId);
+}
+
+// Find the page a node belongs to by walking up to the PAGE ancestor.
+function pageOf(node) {
+  let current = node;
+  while (current && current.type !== 'PAGE') current = current.parent;
+  return current;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SCAN — every image on every slide, metadata only
+// ─────────────────────────────────────────────────────────────
+async function scanAllAssets() {
+  // Ensure every page is loaded before traversing (dynamic-page safe).
+  if (figma.loadAllPagesAsync) {
+    try { await figma.loadAllPagesAsync(); } catch (e) { /* older API: pages already loaded */ }
   }
 
-  // Scan all selected nodes — in Figma Slides each slide is a top-level frame
-  for (const selectedNode of selection) {
-    // Get all child nodes inside the selected slide
-    // Also include the selected node itself in case it has fills directly
-    const children = 'findAll' in selectedNode ? selectedNode.findAll() : [];
-    const allNodes = [selectedNode, ...children];
+  let total = 0;
 
-    for (const node of allNodes) {
-      // Skip nodes that can't have fills (e.g. groups, connectors)
-      if (!('fills' in node)) continue;
+  for (const page of figma.root.children) {
+    const nodes = [page, ...page.findAll(() => true)];
 
-      for (const fill of node.fills) {
+    for (const node of nodes) {
+      // Skip nodes with no fills array. `fills` can be figma.mixed (a Symbol)
+      // on e.g. text nodes with mixed fills — iterating that throws, so guard.
+      if (!('fills' in node) || !Array.isArray(node.fills)) continue;
+
+      const slideName = findSlideName(node, page);
+
+      for (let fillIndex = 0; fillIndex < node.fills.length; fillIndex++) {
+        const fill = node.fills[fillIndex];
 
         if (fill.type === 'IMAGE') {
           try {
-            // Get the image object stored in Figma using its hash (unique ID)
             const image = figma.getImageByHash(fill.imageHash);
-            // Fetch the raw bytes of the image as stored internally by Figma
+            if (!image) continue;
             const bytes = await image.getBytesAsync();
 
-            // Send this asset to the UI one at a time (avoids out-of-memory crash)
             figma.ui.postMessage({
               type: 'asset',
               data: {
                 type: 'image',
+                assetKey: assetKeyFor(node.id, fillIndex),
                 nodeId: node.id,
+                fillIndex,
                 nodeName: node.name,
-                page: figma.currentPage.name,
-                hash: fill.imageHash,
-                sizeKB: Math.round(bytes.length / 1024),
-                bytes: Array.from(bytes) // Convert Uint8Array to plain array for postMessage
+                slideName,
+                sizeKB: Math.round(bytes.length / 1024)
+                // NOTE: no bytes here — fetched lazily via 'getBytes'
               }
             });
+            total++;
           } catch (e) {
-            console.error('Failed on node:', node.name, e);
+            console.error('Failed to read image on node:', node.name, e);
           }
-        }
-
-        if (fill.type === 'VIDEO') {
-          // Videos can't be compressed via the Figma API — flag them for visibility
+        } else if (fill.type === 'VIDEO') {
           figma.ui.postMessage({
             type: 'asset',
             data: {
               type: 'video',
+              assetKey: assetKeyFor(node.id, fillIndex),
               nodeId: node.id,
+              fillIndex,
               nodeName: node.name,
-              page: figma.currentPage.name
+              slideName
             }
           });
         }
@@ -91,47 +126,95 @@ async function scanAssets() {
     }
   }
 
-  // Tell the UI the scan is complete
-  figma.ui.postMessage({ type: 'done' });
+  figma.ui.postMessage({ type: 'done', total });
 }
 
-// figma.ui.onmessage is the listener in code.js
-figma.ui.onmessage = async (msg) => {
-  if (msg.type === 'close') figma.closePlugin();
-
-  // Scan button clicked in UI — scan the current selection
-  if (msg.type === 'scan') scanAssets();
-
-  if (msg.type === 'resize') {
-    figma.ui.resize(msg.width, msg.height);
+// ─────────────────────────────────────────────────────────────
+// Fetch the raw bytes for a single image fill, on demand.
+// ─────────────────────────────────────────────────────────────
+async function sendBytes(assetKey, nodeId, fillIndex) {
+  try {
+    const node = await getNode(nodeId);
+    if (!node || !('fills' in node) || !Array.isArray(node.fills)) {
+      figma.ui.postMessage({ type: 'bytesError', assetKey, message: 'Node no longer exists.' });
+      return;
+    }
+    const fill = node.fills[fillIndex];
+    if (!fill || fill.type !== 'IMAGE') {
+      figma.ui.postMessage({ type: 'bytesError', assetKey, message: 'Image fill no longer exists.' });
+      return;
+    }
+    const image = figma.getImageByHash(fill.imageHash);
+    const bytes = await image.getBytesAsync();
+    figma.ui.postMessage({ type: 'bytes', assetKey, bytes: Array.from(bytes) });
+  } catch (e) {
+    console.error('getBytes failed:', e);
+    figma.ui.postMessage({ type: 'bytesError', assetKey, message: 'Could not load image bytes.' });
   }
+}
 
-  if (msg.type === 'compress') {
-    const { nodeId, bytes } = msg;
+// ─────────────────────────────────────────────────────────────
+// Navigate — jump the canvas to the slide holding this image
+// ─────────────────────────────────────────────────────────────
+async function navigateTo(nodeId) {
+  try {
+    const node = await getNode(nodeId);
+    if (!node) {
+      figma.ui.postMessage({ type: 'error', message: 'That image no longer exists.' });
+      return;
+    }
+    const page = pageOf(node);
+    if (page && figma.currentPage !== page) {
+      if (figma.setCurrentPageAsync) await figma.setCurrentPageAsync(page);
+      else figma.currentPage = page;
+    }
+    figma.currentPage.selection = [node];
+    figma.viewport.scrollAndZoomIntoView([node]);
+  } catch (e) {
+    console.error('navigate failed:', e);
+    figma.ui.postMessage({ type: 'error', message: 'Could not jump to that image.' });
+  }
+}
 
-    // Search all pages for the node with the matching ID
-    let targetNode = null;
-    for (const page of figma.root.children) {
-      targetNode = page.findOne(n => n.id === nodeId);
-      if (targetNode) break;
+// ─────────────────────────────────────────────────────────────
+// Compress — replace only the targeted image fill with new bytes
+// ─────────────────────────────────────────────────────────────
+async function compress(assetKey, nodeId, fillIndex, bytes) {
+  try {
+    const node = await getNode(nodeId);
+    if (!node || !('fills' in node) || !Array.isArray(node.fills)) {
+      figma.ui.postMessage({ type: 'compressError', assetKey, message: 'Node no longer exists.' });
+      return;
     }
 
-    if (!targetNode || !('fills' in targetNode)) return;
-
-    // Create a new image in Figma from the compressed bytes sent by the UI
     const newImage = figma.createImage(new Uint8Array(bytes));
 
-    // Replace the old image fill hash with the new compressed image hash
-    // Object.assign used instead of spread (...) — Figma sandbox doesn't support spread
-    targetNode.fills = targetNode.fills.map(fill => {
-      if (fill.type === 'IMAGE') {
+    // Replace ONLY the fill at fillIndex — a node can hold several image fills.
+    // Object.assign (not spread) — the Figma sandbox doesn't support spread on fills.
+    const nextFills = node.fills.map((fill, i) => {
+      if (i === fillIndex && fill.type === 'IMAGE') {
         return Object.assign({}, fill, { imageHash: newImage.hash });
       }
       return fill;
     });
+    node.fills = nextFills;
 
-    // Calculate new size and send back to UI for display
     const newSizeKB = Math.round(bytes.length / 1024);
-    figma.ui.postMessage({ type: 'compressed', nodeId, newSizeKB });
+    figma.ui.postMessage({ type: 'compressed', assetKey, newSizeKB });
+  } catch (e) {
+    console.error('compress failed:', e);
+    figma.ui.postMessage({ type: 'compressError', assetKey, message: 'Compression failed to apply.' });
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Message router
+// ─────────────────────────────────────────────────────────────
+figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'close') figma.closePlugin();
+  else if (msg.type === 'scan') scanAllAssets();
+  else if (msg.type === 'getBytes') sendBytes(msg.assetKey, msg.nodeId, msg.fillIndex);
+  else if (msg.type === 'navigate') navigateTo(msg.nodeId);
+  else if (msg.type === 'compress') compress(msg.assetKey, msg.nodeId, msg.fillIndex, msg.bytes);
+  else if (msg.type === 'resize') figma.ui.resize(msg.width, msg.height);
 };

@@ -3,122 +3,82 @@
 <head>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 52px; font-size: 13px; background: #2b2b2b; color: #fff; }
+    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 96px; font-size: 13px; background: #2b2b2b; color: #fff; }
     h2 { font-size: 14px; margin: 0 0 12px; }
 
-    .controls { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-bottom: 1px solid #4f4f4f; background: #2b2b2b; z-index: 10; }
+    /* Fixed top bar: scan + threshold */
+    .controls {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 12px; border-bottom: 1px solid #4f4f4f; background: #2b2b2b; z-index: 10;
+    }
+    .controls-top { display: flex; align-items: center; gap: 8px; }
+    .threshold-row { display: flex; align-items: center; gap: 8px; }
+    .threshold-row label { font-size: 11px; color: #888; white-space: nowrap; }
+    .threshold-value { font-size: 11px; color: #c7c7c7; min-width: 62px; text-align: right; font-weight: 600; }
 
+    #summary { flex: 1; font-size: 12px; color: #c7c7c7; }
     #status { color: #c7c7c7; font-size: 12px; padding: 12px 0 4px; }
     #idle { color: #888; font-size: 12px; padding: 24px 0; text-align: center; }
 
     /* Asset card */
     .asset { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid #4f4f4f; }
-    .asset-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #c7c7c7; }
-
-    /* Side-by-side preview (small, in list) */
-    .preview-row { display: flex; gap: 8px; }
-    .preview-col { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-    .preview-col img {
-      width: 100%;
-      aspect-ratio: 4/3;
-      object-fit: cover;
-      border-radius: 4px;
-      background: #444;
+    .asset-head { display: flex; gap: 10px; align-items: flex-start; }
+    .asset-thumb {
+      width: 72px; height: 54px; border-radius: 4px; object-fit: cover;
+      background: #3a3a3a; flex-shrink: 0; cursor: pointer; border: 1px solid transparent;
     }
-    .preview-col .preview-img-placeholder {
-      width: 100%;
-      aspect-ratio: 4/3;
-      border-radius: 4px;
-      background: #3a3a3a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #666;
-      font-size: 11px;
-    }
-    .preview-label { font-size: 10px; color: #666; text-align: center; }
-    .preview-size { font-size: 11px; font-weight: 600; text-align: center; }
-    .preview-size.large { color: #e05252; }
-    .preview-size.ok { color: #c7c7c7; }
-    .preview-size.estimated { color: #2da44e; }
+    .asset-thumb:hover { border-color: #6b9eff; }
+    .asset-meta { flex: 1; min-width: 0; }
+    .asset-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+    .asset-slide { font-size: 11px; color: #888; margin-top: 2px; cursor: pointer; }
+    .asset-slide:hover { color: #6b9eff; text-decoration: underline; }
+    .asset-size { font-size: 12px; font-weight: 600; margin-top: 4px; }
+    .asset-size.large { color: #e05252; }
+    .asset-size.ok { color: #c7c7c7; }
+    .arrow { font-size: 11px; color: #2da44e; }
 
     /* Slider + buttons row */
     .controls-row { display: flex; align-items: center; gap: 8px; }
-
-    input[type="range"] {
-      -webkit-appearance: none;
-      appearance: none;
-      flex: 1;
-      background: transparent;
-    }
+    input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; background: transparent; }
     input[type="range"]::-webkit-slider-runnable-track { background: #777; height: 1px; }
     input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      height: 10px; width: 10px;
-      border-radius: 50%;
-      border: 1px solid #444;
-      background: #a4a4a4;
-      margin-top: -4px;
-      cursor: pointer;
+      -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%;
+      border: 1px solid #444; background: #a4a4a4; margin-top: -4px; cursor: pointer;
     }
     input[type="range"]::-moz-range-track { background: #4f4f4f; height: 2px; }
     input[type="range"]::-moz-range-thumb {
-      height: 10px; width: 10px;
-      border-radius: 50%;
-      border: 1px solid #444;
-      background: #a4a4a4;
-      cursor: pointer;
+      height: 10px; width: 10px; border-radius: 50%; border: 1px solid #444; background: #a4a4a4; cursor: pointer;
     }
+    /* Threshold slider slightly bolder */
+    #threshold::-webkit-slider-runnable-track { background: #5a5a5a; height: 2px; }
+    #threshold::-webkit-slider-thumb { background: #6b9eff; margin-top: -5px; height: 12px; width: 12px; }
 
-    .quality-label { font-size: 11px; color: #c7c7c7; min-width: 30px; }
+    .quality-label { font-size: 11px; color: #c7c7c7; min-width: 34px; }
+    .est { font-size: 11px; color: #2da44e; min-width: 56px; text-align: right; }
 
     .btn { padding: 4px 8px; font-size: 12px; color: white; background: transparent; border: 1px solid #4f4f4f; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn:hover { background: #444; }
     .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn.primary { border-color: #6b9eff; }
 
-    .video-thumb { width: 64px; height: 64px; border-radius: 4px; background: #222; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }
     .video-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #4f4f4f; }
+    .video-thumb { width: 48px; height: 36px; border-radius: 4px; background: #222; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0; }
     .video-info .name { font-size: 12px; color: #c7c7c7; }
     .video-info .meta { font-size: 11px; color: #666; margin-top: 2px; }
+    .section-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 0 4px; }
 
-    /* ── Modal: full-window comparison view ── */
-    /* Shown by expanding the plugin window to 800×560 */
-    #modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #2b2b2b;
-      flex-direction: column;
-      z-index: 100;
-    }
+    /* ── Preview modal ── */
+    #modal { display: none; position: fixed; inset: 0; background: #2b2b2b; flex-direction: column; z-index: 100; }
     #modal.open { display: flex; }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      border-bottom: 1px solid #4f4f4f;
-      flex-shrink: 0;
-    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #4f4f4f; flex-shrink: 0; }
     .modal-title { font-size: 12px; color: #c7c7c7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 12px; }
     .modal-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; line-height: 1; padding: 0; flex-shrink: 0; }
     .modal-close:hover { color: #fff; }
-
     .modal-body { flex: 1; display: flex; gap: 12px; padding: 16px; overflow: hidden; min-height: 0; }
     .modal-col { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
     .modal-col img { width: 100%; flex: 1; object-fit: contain; border-radius: 6px; background: #1a1a1a; min-height: 0; }
-    .modal-placeholder {
-      width: 100%; flex: 1;
-      border-radius: 6px;
-      background: #1a1a1a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #555;
-      font-size: 12px;
-      min-height: 0;
-    }
+    .modal-placeholder { width: 100%; flex: 1; border-radius: 6px; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #555; font-size: 12px; min-height: 0; }
     .modal-label { font-size: 10px; color: #666; text-align: center; flex-shrink: 0; }
     .modal-size { font-size: 13px; font-weight: 600; text-align: center; flex-shrink: 0; }
     .modal-size.large { color: #e05252; }
@@ -129,14 +89,22 @@
 <body>
 
   <div class="controls">
-    <button class="btn" onclick="scan()">Scan selected slide</button>
+    <div class="controls-top">
+      <button class="btn primary" onclick="scan()">Scan all slides</button>
+      <span id="summary"></span>
+    </div>
+    <div class="threshold-row" id="threshold-controls" style="display:none">
+      <label>Flag images over</label>
+      <input type="range" id="threshold" min="0" max="2000" value="500" step="50" oninput="onThresholdChange()" />
+      <span class="threshold-value" id="threshold-value">500 KB</span>
+    </div>
   </div>
 
   <div id="status" style="display:none"></div>
-  <div id="idle">Select a slide in Figma, then click Scan.</div>
+  <div id="idle">Click “Scan all slides” to find every image in the file.</div>
   <div id="list"></div>
 
-  <!-- Modal: expands plugin window to show full-size comparison -->
+  <!-- Preview modal: expands the plugin window for a full-size comparison -->
   <div id="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-title"></div>
@@ -157,29 +125,42 @@
     </div>
   </div>
 
-  <!-- Hidden canvas for compression processing -->
   <canvas id="canvas" style="display:none"></canvas>
 
   <script>
+    // Metadata for every image in the file (bytes fetched lazily).
     const assets = [];
+    const videos = [];
+    const byKey = {};                 // assetKey -> asset
+    const pendingBytes = {};          // assetKey -> { resolve, reject } for in-flight getBytes
     const debounceTimers = {};
+    let threshold = 500;              // KB
+    let scanDone = false;
 
-    // Converts byte array to base64 for <img> display
-    function bytesToBase64(bytes) {
-      const uint8 = new Uint8Array(bytes);
-      let binary = '';
-      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
-      return btoa(binary);
+    // ── Byte helpers ───────────────────────────────────────────
+    function bytesToBlobUrl(bytes) {
+      return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'image/png' }));
     }
 
-    // Compresses image bytes via Canvas API
-    // Returns { bytes, dataUrl } — bytes for sending to Figma, dataUrl for preview
+    // Request the raw bytes for one image on demand; cached after first fetch.
+    function ensureBytes(asset) {
+      if (asset._bytes) return Promise.resolve(asset._bytes);
+      if (asset._bytesPromise) return asset._bytesPromise;
+      asset._bytesPromise = new Promise((resolve, reject) => {
+        pendingBytes[asset.assetKey] = { resolve, reject };
+        parent.postMessage({ pluginMessage: {
+          type: 'getBytes', assetKey: asset.assetKey, nodeId: asset.nodeId, fillIndex: asset.fillIndex
+        } }, '*');
+      });
+      return asset._bytesPromise;
+    }
+
+    // Compress image bytes via Canvas. Resolves { bytes, dataUrl } or rejects on decode failure.
     function compressBytes(bytes, quality) {
-      return new Promise((resolve) => {
-        const format = 'image/jpeg';
-        const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' });
-        const url = URL.createObjectURL(blob);
+      return new Promise((resolve, reject) => {
+        const url = bytesToBlobUrl(bytes);
         const img = new Image();
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not decode image')); };
         img.onload = () => {
           const canvas = document.getElementById('canvas');
           canvas.width = img.naturalWidth;
@@ -187,231 +168,284 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
           canvas.toBlob((outBlob) => {
+            if (!outBlob) { URL.revokeObjectURL(url); reject(new Error('Canvas encode failed')); return; }
             outBlob.arrayBuffer().then(buf => {
               URL.revokeObjectURL(url);
               const compressedBytes = Array.from(new Uint8Array(buf));
-              // Also generate a data URL for the preview image
               const reader = new FileReader();
               reader.onload = (e) => resolve({ bytes: compressedBytes, dataUrl: e.target.result });
               reader.readAsDataURL(outBlob);
             });
-          }, format, quality / 100);
+          }, 'image/jpeg', quality / 100);
         };
         img.src = url;
       });
     }
 
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    // ── Scan ────────────────────────────────────────────────────
     function scan() {
-      assets.length = 0;
+      assets.length = 0; videos.length = 0;
+      for (const k in byKey) delete byKey[k];
+      scanDone = false;
       document.getElementById('list').innerHTML = '';
       document.getElementById('idle').style.display = 'none';
+      document.getElementById('threshold-controls').style.display = 'none';
+      document.getElementById('summary').textContent = '';
       document.getElementById('status').style.display = 'block';
-      document.getElementById('status').textContent = 'Scanning...';
+      document.getElementById('status').textContent = 'Scanning all slides…';
       parent.postMessage({ pluginMessage: { type: 'scan' } }, '*');
     }
 
-    // Opens the full comparison modal — expands the plugin window to 800×560
-    function openModal(nodeId) {
-      const asset = assets.find(a => a.nodeId === nodeId);
+    function onThresholdChange() {
+      threshold = parseInt(document.getElementById('threshold').value);
+      document.getElementById('threshold-value').textContent = threshold + ' KB';
+      render();
+    }
+
+    // ── Render the filtered, size-sorted dashboard ──────────────
+    function render() {
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+
+      const flagged = assets
+        .filter(a => a.sizeKB > threshold)
+        .sort((a, b) => b.sizeKB - a.sizeKB);
+
+      document.getElementById('summary').textContent =
+        `${flagged.length} of ${assets.length} image${assets.length !== 1 ? 's' : ''} over ${threshold} KB`;
+
+      for (const asset of flagged) list.appendChild(buildImageRow(asset));
+
+      if (videos.length) {
+        const label = document.createElement('div');
+        label.className = 'section-label';
+        label.textContent = `${videos.length} video${videos.length !== 1 ? 's' : ''} (cannot compress)`;
+        list.appendChild(label);
+        for (const v of videos) list.appendChild(buildVideoRow(v));
+      }
+    }
+
+    function buildImageRow(asset) {
+      const div = document.createElement('div');
+      div.className = 'asset';
+      div.id = 'asset-' + asset.assetKey;
+      const key = asset.assetKey;
+      const done = asset._done;
+
+      div.innerHTML = `
+        <div class="asset-head">
+          <img class="asset-thumb" id="thumb-${key}" title="Click to jump to this slide" />
+          <div class="asset-meta">
+            <div class="asset-name">${escapeHtml(asset.nodeName)}</div>
+            <div class="asset-slide" title="Jump to slide">↳ ${escapeHtml(asset.slideName)}</div>
+            <div class="asset-size ${asset.sizeKB > threshold ? 'large' : 'ok'}" id="size-${key}">${asset.sizeKB} KB</div>
+          </div>
+        </div>
+        <div class="controls-row" id="controls-${key}" style="${done ? 'display:none' : ''}">
+          <input type="range" min="10" max="100" value="80" id="slider-${key}" oninput="onSliderChange('${key}')" />
+          <span class="quality-label" id="label-${key}">80%</span>
+          <span class="est" id="est-${key}">—</span>
+          <button class="btn" onclick="openModal('${key}')">Preview</button>
+          <button class="btn primary" id="btn-${key}" onclick="compressAsset('${key}')">Compress</button>
+        </div>
+      `;
+
+      // Thumbnail: fetch bytes lazily, and clicking it (or the slide label) navigates.
+      const thumb = div.querySelector('#thumb-' + CSS.escape(key));
+      const nav = () => parent.postMessage({ pluginMessage: { type: 'navigate', nodeId: asset.nodeId } }, '*');
+      thumb.onclick = nav;
+      div.querySelector('.asset-slide').onclick = nav;
+
+      ensureBytes(asset)
+        .then(bytes => { thumb.src = bytesToBlobUrl(bytes); })
+        .catch(() => { thumb.alt = '⚠'; });
+
+      return div;
+    }
+
+    function buildVideoRow(v) {
+      const div = document.createElement('div');
+      div.className = 'video-row';
+      div.innerHTML = `
+        <div class="video-thumb">▶</div>
+        <div class="video-info">
+          <div class="name">${escapeHtml(v.nodeName)}</div>
+          <div class="meta">on ${escapeHtml(v.slideName)} — video, cannot compress</div>
+        </div>
+      `;
+      div.querySelector('.video-thumb').style.cursor = 'pointer';
+      div.querySelector('.video-thumb').onclick = () =>
+        parent.postMessage({ pluginMessage: { type: 'navigate', nodeId: v.nodeId } }, '*');
+      return div;
+    }
+
+    // ── Slider preview (debounced) ──────────────────────────────
+    function onSliderChange(key) {
+      const asset = byKey[key];
+      const estEl = document.getElementById('est-' + key);
+      const quality = parseInt(document.getElementById('slider-' + key).value);
+      document.getElementById('label-' + key).textContent = quality + '%';
+      estEl.textContent = '…';
+
+      clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(async () => {
+        try {
+          const bytes = await ensureBytes(asset);
+          const result = await compressBytes(bytes, quality);
+          const estKB = Math.round(result.bytes.length / 1024);
+          estEl.textContent = '→ ' + estKB + ' KB';
+          asset._cachedBytes = result.bytes;
+          asset._cachedDataUrl = result.dataUrl;
+          asset._cachedQuality = quality;
+        } catch (e) {
+          estEl.textContent = '⚠';
+          console.error(e);
+        }
+      }, 300);
+    }
+
+    // ── Compress (from the dashboard) ───────────────────────────
+    async function compressAsset(key) {
+      const asset = byKey[key];
+      const quality = parseInt(document.getElementById('slider-' + key).value);
+      const btn = document.getElementById('btn-' + key);
+      btn.disabled = true;
+      btn.textContent = 'Compressing…';
+
+      try {
+        let compressedBytes;
+        if (asset._cachedBytes && asset._cachedQuality === quality) {
+          compressedBytes = asset._cachedBytes;
+        } else {
+          const bytes = await ensureBytes(asset);
+          const result = await compressBytes(bytes, quality);
+          compressedBytes = result.bytes;
+        }
+        parent.postMessage({ pluginMessage: {
+          type: 'compress', assetKey: key, nodeId: asset.nodeId, fillIndex: asset.fillIndex, bytes: compressedBytes
+        } }, '*');
+      } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+      }
+    }
+
+    // ── Preview modal ───────────────────────────────────────────
+    async function openModal(key) {
+      const asset = byKey[key];
       if (!asset) return;
+      document.getElementById('modal-title').textContent = asset.nodeName + '  —  ' + asset.slideName;
 
-      // Populate modal
-      document.getElementById('modal-title').textContent = asset.nodeName;
+      const origEl = document.getElementById('modal-original');
+      const origSizeEl = document.getElementById('modal-original-size');
+      origEl.src = '';
+      origSizeEl.textContent = asset.sizeKB + ' KB';
+      origSizeEl.className = 'modal-size ' + (asset.sizeKB > threshold ? 'large' : 'ok');
 
-      const originalSrc = `data:image/png;base64,${bytesToBase64(asset.bytes)}`;
-      document.getElementById('modal-original').src = originalSrc;
-      document.getElementById('modal-original-size').textContent = asset.sizeKB + ' KB';
-      document.getElementById('modal-original-size').className = 'modal-size ' + (asset.sizeKB > 500 ? 'large' : 'ok');
-
-      // Show compressed preview if slider has been moved
+      const compEl = document.getElementById('modal-compressed');
+      const placeholder = document.getElementById('modal-placeholder');
       if (asset._cachedDataUrl) {
-        document.getElementById('modal-compressed').src = asset._cachedDataUrl;
-        document.getElementById('modal-compressed').style.display = 'block';
-        document.getElementById('modal-placeholder').style.display = 'none';
-        const estimatedKB = Math.round(asset._cachedBytes.length / 1024);
-        document.getElementById('modal-compressed-size').textContent = estimatedKB + ' KB';
+        compEl.src = asset._cachedDataUrl;
+        compEl.style.display = 'block';
+        placeholder.style.display = 'none';
+        document.getElementById('modal-compressed-size').textContent = Math.round(asset._cachedBytes.length / 1024) + ' KB';
       } else {
-        document.getElementById('modal-compressed').style.display = 'none';
-        document.getElementById('modal-placeholder').style.display = 'flex';
+        compEl.style.display = 'none';
+        placeholder.style.display = 'flex';
         document.getElementById('modal-compressed-size').textContent = '';
       }
 
-      // Expand plugin window, then show modal
-      parent.postMessage({ pluginMessage: { type: 'resize', width: 1200, height: 1200 } }, '*');
+      parent.postMessage({ pluginMessage: { type: 'resize', width: 1000, height: 640 } }, '*');
       document.getElementById('modal').classList.add('open');
+
+      // Load the original at full size lazily.
+      try { origEl.src = bytesToBlobUrl(await ensureBytes(asset)); } catch (e) { /* leave blank */ }
     }
 
-    // Closes the modal and shrinks plugin back to normal size
     function closeModal() {
       document.getElementById('modal').classList.remove('open');
       parent.postMessage({ pluginMessage: { type: 'resize', width: 400, height: 600 } }, '*');
     }
 
-    // Called when slider moves — debounced, updates preview image and estimated size
-    function onSliderChange(nodeId) {
-      const estimatedSizeEl = document.getElementById('estimated-size-' + nodeId);
-      const previewImg = document.getElementById('preview-img-' + nodeId);
-      estimatedSizeEl.textContent = '...';
-
-      clearTimeout(debounceTimers[nodeId]);
-
-      debounceTimers[nodeId] = setTimeout(async () => {
-        const asset = assets.find(a => a.nodeId === nodeId);
-        const quality = parseInt(document.getElementById('slider-' + nodeId).value);
-        document.getElementById('label-' + nodeId).textContent = quality + '%';
-
-        console.log(`Previewing ${asset.nodeName} at ${quality}%`);
-
-        // Compress and get both bytes and preview data URL
-        const result = await compressBytes(asset.bytes, quality);
-        const estimatedKB = Math.round(result.bytes.length / 1024);
-
-        // Update small preview image in the list
-        previewImg.src = result.dataUrl;
-        previewImg.style.display = 'block';
-
-        // Update estimated size
-        estimatedSizeEl.textContent = estimatedKB + ' KB';
-        estimatedSizeEl.className = 'preview-size estimated';
-
-        // Cache compressed bytes and dataUrl — reused by Compress button and modal
-        asset._cachedBytes = result.bytes;
-        asset._cachedDataUrl = result.dataUrl;
-        asset._cachedQuality = quality;
-
-        console.log(`Preview ready: ${estimatedKB} KB`);
-      }, 300);
-    }
-
-    // Compresses and sends to Figma — reuses cached bytes if quality hasn't changed
-    async function compressAsset(asset) {
-      const quality = parseInt(document.getElementById('slider-' + asset.nodeId).value);
-      const btn = document.getElementById('btn-' + asset.nodeId);
-
-      btn.disabled = true;
-      btn.textContent = 'Compressing...';
-
-      // Reuse cached bytes from preview if quality matches — avoids re-encoding
-      let compressedBytes;
-      if (asset._cachedBytes && asset._cachedQuality === quality) {
-        console.log(`Using cached bytes for ${asset.nodeName}`);
-        compressedBytes = asset._cachedBytes;
-      } else {
-        console.log(`Re-compressing ${asset.nodeName} at ${quality}%`);
-        const result = await compressBytes(asset.bytes, quality);
-        compressedBytes = result.bytes;
-      }
-
-      parent.postMessage({
-        pluginMessage: { type: 'compress', nodeId: asset.nodeId, bytes: compressedBytes }
-      }, '*');
-    }
-
+    // ── Messages from code.js ───────────────────────────────────
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
       if (!msg) return;
 
       if (msg.type === 'asset') {
-        const asset = msg.data;
-        console.log(`Asset received: ${asset.nodeName} | ${asset.type} | ${asset.sizeKB || '—'} KB`);
-
-        if (asset.type === 'image') assets.push(asset);
-
-        document.getElementById('status').style.display = 'none';
-        const list = document.getElementById('list');
-        const div = document.createElement('div');
-        div.id = 'asset-' + asset.nodeId;
-
-        if (asset.type === 'image') {
-          div.className = 'asset';
-          const originalSrc = `data:image/png;base64,${bytesToBase64(asset.bytes)}`;
-          const isLarge = asset.sizeKB > 500;
-
-          div.innerHTML = `
-            <div class="asset-name">${asset.nodeName}</div>
-
-            <!-- Side-by-side preview (small) -->
-            <div class="preview-row">
-              <div class="preview-col">
-                <img src="${originalSrc}" />
-                <div class="preview-label">Original</div>
-                <div class="preview-size ${isLarge ? 'large' : 'ok'}">${asset.sizeKB} KB</div>
-              </div>
-              <div class="preview-col">
-                <img id="preview-img-${asset.nodeId}" style="display:none" />
-                <div class="preview-img-placeholder" id="placeholder-${asset.nodeId}">move slider</div>
-                <div class="preview-label">Compressed</div>
-                <div class="preview-size estimated" id="estimated-size-${asset.nodeId}">—</div>
-              </div>
-            </div>
-
-            <!-- Quality slider + Preview + Compress buttons -->
-            <div class="controls-row">
-              <input type="range" id="slider-${asset.nodeId}"
-                min="10" max="100" value="100"
-                oninput="onSliderChange('${asset.nodeId}')" />
-              <span class="quality-label" id="label-${asset.nodeId}">100%</span>
-              <button class="btn" onclick="openModal('${asset.nodeId}')">Preview</button>
-              <button class="btn" id="btn-${asset.nodeId}"
-                onclick="compressAsset(assets.find(a => a.nodeId === '${asset.nodeId}'))">
-                Compress
-              </button>
-            </div>
-          `;
-        } else {
-          // Video row
-          div.className = 'video-row';
-          div.innerHTML = `
-            <div class="video-thumb">▶</div>
-            <div class="video-info">
-              <div class="name">${asset.nodeName}</div>
-              <div class="meta">video — cannot compress</div>
-            </div>
-          `;
-        }
-
-        list.appendChild(div);
-
-        // Hide placeholder once preview image loads
-        const previewImg = document.getElementById('preview-img-' + asset.nodeId);
-        if (previewImg) {
-          previewImg.onload = () => {
-            const placeholder = document.getElementById('placeholder-' + asset.nodeId);
-            if (placeholder) placeholder.style.display = 'none';
-          };
-        }
+        const a = msg.data;
+        byKey[a.assetKey] = a;
+        if (a.type === 'image') assets.push(a);
+        else if (a.type === 'video') videos.push(a);
+        // Re-render incrementally once scanning is done; during scan we just collect.
+        if (scanDone) render();
       }
 
-      if (msg.type === 'error') {
+      else if (msg.type === 'bytes') {
+        const p = pendingBytes[msg.assetKey];
+        const asset = byKey[msg.assetKey];
+        if (asset) asset._bytes = msg.bytes;
+        if (p) { p.resolve(msg.bytes); delete pendingBytes[msg.assetKey]; }
+      }
+
+      else if (msg.type === 'bytesError') {
+        const p = pendingBytes[msg.assetKey];
+        const asset = byKey[msg.assetKey];
+        if (asset) asset._bytesPromise = null; // allow retry
+        if (p) { p.reject(new Error(msg.message)); delete pendingBytes[msg.assetKey]; }
+      }
+
+      else if (msg.type === 'error') {
         document.getElementById('status').textContent = msg.message;
         document.getElementById('status').style.display = 'block';
       }
 
-      if (msg.type === 'compressed') {
-        console.log(`Confirmed: ${msg.nodeId} → ${msg.newSizeKB} KB`);
-
-        const assetEl = document.getElementById('asset-' + msg.nodeId);
-        const btn = document.getElementById('btn-' + msg.nodeId);
-
-        if (btn) { btn.disabled = true; btn.textContent = '✅ Done'; }
-
-        if (assetEl) {
-          // Update original size column to reflect new compressed size
-          const originalSizeEl = assetEl.querySelector('.preview-col .preview-size');
-          if (originalSizeEl) {
-            originalSizeEl.textContent = (msg.newSizeKB || '—') + ' KB';
-            originalSizeEl.className = 'preview-size ok';
-          }
-          // Hide the slider row
-          const controlsRow = assetEl.querySelector('.controls-row');
-          if (controlsRow) controlsRow.style.display = 'none';
-        }
+      else if (msg.type === 'compressError') {
+        const btn = document.getElementById('btn-' + msg.assetKey);
+        if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+        document.getElementById('status').textContent = msg.message;
+        document.getElementById('status').style.display = 'block';
       }
 
-      if (msg.type === 'done') {
-        const count = assets.length;
-        document.getElementById('status').textContent = `Scan complete — ${count} image${count !== 1 ? 's' : ''} found.`;
-        document.getElementById('status').style.display = 'block';
+      else if (msg.type === 'compressed') {
+        const asset = byKey[msg.assetKey];
+        if (asset) {
+          asset._done = true;
+          asset.sizeKB = msg.newSizeKB;      // reflect the new size in the dashboard/sorting
+          asset._bytes = null;               // force a re-fetch if reopened
+          asset._bytesPromise = null;
+        }
+        const btn = document.getElementById('btn-' + msg.assetKey);
+        if (btn) { btn.disabled = true; btn.textContent = '✅ Done'; }
+        const sizeEl = document.getElementById('size-' + msg.assetKey);
+        if (sizeEl) { sizeEl.textContent = msg.newSizeKB + ' KB'; sizeEl.className = 'asset-size ok'; }
+        const controls = document.getElementById('controls-' + msg.assetKey);
+        if (controls) controls.style.display = 'none';
+      }
+
+      else if (msg.type === 'done') {
+        scanDone = true;
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('threshold-controls').style.display = 'flex';
+
+        // Default the threshold slider's ceiling to the largest image so the
+        // range is meaningful, and clamp the current threshold into range.
+        const maxKB = assets.reduce((m, a) => Math.max(m, a.sizeKB), 0);
+        const slider = document.getElementById('threshold');
+        slider.max = Math.max(500, Math.ceil(maxKB / 50) * 50);
+        if (threshold > slider.max) { threshold = parseInt(slider.max); slider.value = threshold; }
+        document.getElementById('threshold-value').textContent = threshold + ' KB';
+
+        if (assets.length === 0 && videos.length === 0) {
+          document.getElementById('idle').textContent = 'No images or videos found in this file.';
+          document.getElementById('idle').style.display = 'block';
+        }
+        render();
       }
     };
   </script>
