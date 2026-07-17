@@ -38,6 +38,17 @@ function assetKeyFor(nodeId, fillIndex) {
   return nodeId + ':' + fillIndex;
 }
 
+// Detect the image format from its magic-number byte signature.
+// Used to badge PNGs in the UI (PNG transparency turns black when re-encoded to JPEG).
+function detectFormat(bytes) {
+  if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'PNG';
+  if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'JPEG';
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'WEBP';
+  if (bytes.length >= 3 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'GIF';
+  return 'IMG';
+}
+
 // Walk up the parent chain to find the Slide this node lives on.
 // Falls back to the containing page's name for non-Slides files.
 function findSlideName(node, page) {
@@ -74,6 +85,9 @@ async function scanAllAssets() {
   let total = 0;
 
   for (const page of figma.root.children) {
+
+    // Dynamic pages can add/remove nodes while we scan, so findAll(() => true) to get a live list of all nodes on the page as we go.
+    // Safer than a recursive walk that could throw if the tree changes underfoot.
     const nodes = [page, ...page.findAll(() => true)];
 
     for (const node of nodes) {
@@ -83,15 +97,20 @@ async function scanAllAssets() {
 
       const slideName = findSlideName(node, page);
 
+      // Iterate the fills array, as a node can have multiple fills — we want to capture each one.
       for (let fillIndex = 0; fillIndex < node.fills.length; fillIndex++) {
         const fill = node.fills[fillIndex];
 
         if (fill.type === 'IMAGE') {
           try {
+            // Get the image bytes now to calculate the size in KB, but we'll fetch them again lazily later when the user clicks "Compress"
+            // This avoids keeping big images in memory during the scan.
             const image = figma.getImageByHash(fill.imageHash);
             if (!image) continue;
             const bytes = await image.getBytesAsync();
 
+            // Send metadata about this image fill to the UI, which will create a row for it.
+            // No bytes yet — those are fetched lazily when the user interacts with the row.
             figma.ui.postMessage({
               type: 'asset',
               data: {
@@ -101,7 +120,8 @@ async function scanAllAssets() {
                 fillIndex,
                 nodeName: node.name,
                 slideName,
-                sizeKB: Math.round(bytes.length / 1024)
+                sizeKB: Math.round(bytes.length / 1024),
+                format: detectFormat(bytes)
                 // NOTE: no bytes here — fetched lazily via 'getBytes'
               }
             });

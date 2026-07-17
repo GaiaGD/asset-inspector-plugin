@@ -1,5 +1,5 @@
 {
-  "name": "Assets Inspector",
+  "name": "Assets Inspector and Resizer",
   "id": "assets-inspector-dev",
   "api": "1.0.0",
   "main": "code.js",

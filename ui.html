@@ -30,7 +30,21 @@
     }
     .asset-thumb:hover { border-color: #6b9eff; }
     .asset-meta { flex: 1; min-width: 0; }
-    .asset-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+    .asset-name { font-size: 12px; color: #fff; display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .asset-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .fmt-badge {
+      flex-shrink: 0; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+      padding: 1px 5px; border-radius: 3px; background: #444; color: #c7c7c7;
+      text-transform: uppercase;
+    }
+    .fmt-badge.png { background: #5a4a1f; color: #f0c674; cursor: help; }
+    .bg-opt { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #f0c674; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
+    .bg-opt input[type="color"] {
+      -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+      padding: 0; border: 1px solid #666; border-radius: 3px; background: none; cursor: pointer;
+    }
+    .bg-opt input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    .bg-opt input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
     .asset-slide { font-size: 11px; color: #888; margin-top: 2px; cursor: pointer; }
     .asset-slide:hover { color: #6b9eff; text-decoration: underline; }
     .asset-size { font-size: 12px; font-weight: 600; margin-top: 4px; }
@@ -57,6 +71,9 @@
     .quality-label { font-size: 11px; color: #c7c7c7; min-width: 34px; }
     .est { font-size: 11px; color: #2da44e; min-width: 56px; text-align: right; }
 
+    .buttons-wrapper { display: flex; flex-direction: column; gap: 8px; }
+    .btn-group { display: flex; gap: 4px; }
+
     .btn { padding: 4px 8px; font-size: 12px; color: white; background: transparent; border: 1px solid #4f4f4f; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn:hover { background: #444; }
     .btn:disabled { opacity: 0.4; cursor: default; }
@@ -68,22 +85,20 @@
     .video-info .meta { font-size: 11px; color: #666; margin-top: 2px; }
     .section-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 0 4px; }
 
-    /* ── Preview modal ── */
-    #modal { display: none; position: fixed; inset: 0; background: #2b2b2b; flex-direction: column; z-index: 100; }
-    #modal.open { display: flex; }
-    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #4f4f4f; flex-shrink: 0; }
-    .modal-title { font-size: 12px; color: #c7c7c7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 12px; }
-    .modal-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; line-height: 1; padding: 0; flex-shrink: 0; }
-    .modal-close:hover { color: #fff; }
-    .modal-body { flex: 1; display: flex; gap: 12px; padding: 16px; overflow: hidden; min-height: 0; }
-    .modal-col { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-    .modal-col img { width: 100%; flex: 1; object-fit: contain; border-radius: 6px; background: #1a1a1a; min-height: 0; }
-    .modal-placeholder { width: 100%; flex: 1; border-radius: 6px; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #555; font-size: 12px; min-height: 0; }
-    .modal-label { font-size: 10px; color: #666; text-align: center; flex-shrink: 0; }
-    .modal-size { font-size: 13px; font-weight: 600; text-align: center; flex-shrink: 0; }
-    .modal-size.large { color: #e05252; }
-    .modal-size.ok { color: #c7c7c7; }
-    .modal-size.green { color: #2da44e; }
+    /* ── Inline preview panel (expands inside a row) ── */
+    .preview { display: flex; gap: 8px; padding-top: 8px; }
+    .preview-col { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .preview-img { width: 100%; height: 550px; object-fit: contain; border-radius: 4px; background: #1a1a1a; }
+    .preview-ph {
+      width: 100%; height: 550px; border-radius: 4px; background: #1a1a1a;
+      display: flex; align-items: center; justify-content: center;
+      color: #555; font-size: 11px; text-align: center; padding: 0 8px;
+    }
+    .preview-label { font-size: 10px; color: #666; text-align: center; }
+    .preview-size { font-size: 12px; font-weight: 600; text-align: center; }
+    .preview-size.large { color: #e05252; }
+    .preview-size.ok { color: #c7c7c7; }
+    .preview-size.green { color: #2da44e; }
   </style>
 </head>
 <body>
@@ -92,6 +107,7 @@
     <div class="controls-top">
       <button class="btn primary" onclick="scan()">Scan all slides</button>
       <span id="summary"></span>
+      <button class="btn" id="collapse-btn" onclick="collapsePreviews()" style="display:none">Shrink view ↙</button>
     </div>
     <div class="threshold-row" id="threshold-controls" style="display:none">
       <label>Flag images over</label>
@@ -104,38 +120,25 @@
   <div id="idle">Click “Scan all slides” to find every image in the file.</div>
   <div id="list"></div>
 
-  <!-- Preview modal: expands the plugin window for a full-size comparison -->
-  <div id="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modal-title"></div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-col">
-        <img id="modal-original" />
-        <div class="modal-label">Original</div>
-        <div class="modal-size" id="modal-original-size"></div>
-      </div>
-      <div class="modal-col">
-        <img id="modal-compressed" style="display:none" />
-        <div class="modal-placeholder" id="modal-placeholder">Move the slider first to generate a preview</div>
-        <div class="modal-label">Compressed</div>
-        <div class="modal-size green" id="modal-compressed-size"></div>
-      </div>
-    </div>
-  </div>
-
   <canvas id="canvas" style="display:none"></canvas>
 
   <script>
     // Metadata for every image in the file (bytes fetched lazily).
     const assets = [];
     const videos = [];
+    // Lookup by assetKey for convenience in event handlers and message handling; kept in sync with assets[].
     const byKey = {};                 // assetKey -> asset
     const pendingBytes = {};          // assetKey -> { resolve, reject } for in-flight getBytes
     const debounceTimers = {};
-    let threshold = 500;              // KB
+    let threshold = 2000;              // KB
     let scanDone = false;
+
+    // Plugin window sizes: default (dashboard only) and enlarged (while a preview is open).
+    const DEFAULT_SIZE = { width: 400, height: 600 };
+    const ENLARGED_SIZE = { width: 1200, height: 1200 };
+    function resizePlugin(w, h) {
+      parent.postMessage({ pluginMessage: { type: 'resize', width: w, height: h } }, '*');
+    }
 
     // ── Byte helpers ───────────────────────────────────────────
     function bytesToBlobUrl(bytes) {
@@ -156,7 +159,9 @@
     }
 
     // Compress image bytes via Canvas. Resolves { bytes, dataUrl } or rejects on decode failure.
-    function compressBytes(bytes, quality) {
+    // bgColor: JPEG has no alpha, so transparent PNG areas encode as black. When a color is
+    // given, paint the canvas that color first so transparency flattens to it instead.
+    function compressBytes(bytes, quality, bgColor) {
       return new Promise((resolve, reject) => {
         const url = bytesToBlobUrl(bytes);
         const img = new Image();
@@ -166,6 +171,10 @@
           canvas.width = img.naturalWidth;
           canvas.height = img.naturalHeight;
           const ctx = canvas.getContext('2d');
+          if (bgColor) {
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
           ctx.drawImage(img, 0, 0);
           canvas.toBlob((outBlob) => {
             if (!outBlob) { URL.revokeObjectURL(url); reject(new Error('Canvas encode failed')); return; }
@@ -189,36 +198,43 @@
     // ── Scan ────────────────────────────────────────────────────
     function scan() {
       assets.length = 0; videos.length = 0;
+      // reset step at the start of a new scan
       for (const k in byKey) delete byKey[k];
+      // reset UI state
       scanDone = false;
       document.getElementById('list').innerHTML = '';
       document.getElementById('idle').style.display = 'none';
       document.getElementById('threshold-controls').style.display = 'none';
       document.getElementById('summary').textContent = '';
       document.getElementById('status').style.display = 'block';
+      // TODO: better UI to indicate incremental progress during scan, especially for large files; right now we just show a static message until the end.
       document.getElementById('status').textContent = 'Scanning all slides…';
+      // Any open previews are gone once rows are rebuilt — restore the default window size.
+      resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
+      document.getElementById('collapse-btn').style.display = 'none';
       parent.postMessage({ pluginMessage: { type: 'scan' } }, '*');
     }
 
     function onThresholdChange() {
       threshold = parseInt(document.getElementById('threshold').value);
       document.getElementById('threshold-value').textContent = threshold + ' KB';
+      resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
       render();
     }
 
-    // ── Render the filtered, size-sorted dashboard ──────────────
+    // ── Render the filtered, size-sorted list ──────────────
     function render() {
       const list = document.getElementById('list');
       list.innerHTML = '';
 
-      const flagged = assets
+      const flaggedLargeImages = assets
         .filter(a => a.sizeKB > threshold)
         .sort((a, b) => b.sizeKB - a.sizeKB);
 
       document.getElementById('summary').textContent =
-        `${flagged.length} of ${assets.length} image${assets.length !== 1 ? 's' : ''} over ${threshold} KB`;
+        `${flaggedLargeImages.length} of ${assets.length} image${assets.length !== 1 ? 's' : ''} over ${threshold} KB`;
 
-      for (const asset of flagged) list.appendChild(buildImageRow(asset));
+      for (const largeImage of flaggedLargeImages) list.appendChild(buildImageRow(largeImage));
 
       if (videos.length) {
         const label = document.createElement('div');
@@ -240,17 +256,38 @@
         <div class="asset-head">
           <img class="asset-thumb" id="thumb-${key}" title="Click to jump to this slide" />
           <div class="asset-meta">
-            <div class="asset-name">${escapeHtml(asset.nodeName)}</div>
+            <div class="asset-name">
+              <span class="asset-name-text">${escapeHtml(asset.nodeName)}</span>
+              ${asset.format ? `<span class="fmt-badge ${asset.format === 'PNG' ? 'png' : ''}"${asset.format === 'PNG' ? ' title="Transparent areas may turn black when compressed to JPEG"' : ''}>${escapeHtml(asset.format)}</span>` : ''}
+            </div>
             <div class="asset-slide" title="Jump to slide">↳ ${escapeHtml(asset.slideName)}</div>
             <div class="asset-size ${asset.sizeKB > threshold ? 'large' : 'ok'}" id="size-${key}">${asset.sizeKB} KB</div>
           </div>
         </div>
         <div class="controls-row" id="controls-${key}" style="${done ? 'display:none' : ''}">
-          <input type="range" min="10" max="100" value="80" id="slider-${key}" oninput="onSliderChange('${key}')" />
-          <span class="quality-label" id="label-${key}">80%</span>
+          <input type="range" min="10" max="100" value="100" id="slider-${key}" oninput="onSliderChange('${key}')" />
+          <span class="quality-label" id="label-${key}">100%</span>
           <span class="est" id="est-${key}">—</span>
-          <button class="btn" onclick="openModal('${key}')">Preview</button>
-          <button class="btn primary" id="btn-${key}" onclick="compressAsset('${key}')">Compress</button>
+          <div class="buttons-wrapper" style="gap:4px">
+            ${asset.format === 'PNG' ? `<label class="bg-opt" title="Fill transparent areas with this color so they don't turn black in JPEG">BG <input type="color" id="bg-${key}" value="#ffffff" oninput="onBgChange('${key}')" /></label>` : ''}
+            <div class="btn-group">
+              <button class="btn" id="preview-btn-${key}" onclick="togglePreview('${key}')">Preview</button>
+              <button class="btn primary" id="btn-${key}" onclick="compressAsset('${key}')">Compress</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview" id="preview-${key}" style="display:none">
+          <div class="preview-col">
+            <img class="preview-img" id="pv-orig-${key}" />
+            <div class="preview-label">Original</div>
+            <div class="preview-size ${asset.sizeKB > threshold ? 'large' : 'ok'}" id="pv-orig-size-${key}">${asset.sizeKB} KB</div>
+          </div>
+          <div class="preview-col">
+            <img class="preview-img" id="pv-comp-${key}" style="display:none" />
+            <div class="preview-ph" id="pv-comp-ph-${key}">Move the slider to preview</div>
+            <div class="preview-label">Compressed</div>
+            <div class="preview-size green" id="pv-comp-size-${key}"></div>
+          </div>
         </div>
       `;
 
@@ -284,28 +321,151 @@
     }
 
     // ── Slider preview (debounced) ──────────────────────────────
+    // Fires on every movement of a row's quality slider. `key` is the asset's
+    // assetKey, which is baked into each row's element IDs (slider-<key>,
+    // label-<key>, est-<key>) so we can find this row's elements.
     function onSliderChange(key) {
+      const quality = parseInt(document.getElementById('slider-' + key).value);  // current slider value, e.g. 80
+
+      // Cheap, synchronous UI updates — run on every pixel of drag so it feels live.
+      document.getElementById('label-' + key).textContent = quality + '%';
+      document.getElementById('est-' + key).textContent = '…';                   // loading placeholder
+
+      // Debounce the expensive work: compressing is costly (decode → canvas → re-encode),
+      // so we don't run it on every tiny drag. Each call cancels the previous pending
+      // timer and starts a fresh 300ms one, so compression only fires once the user
+      // pauses for 300ms — with the final quality value. debounceTimers is keyed per
+      // row so each image debounces independently.
+      clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(() => generatePreview(key, quality), 300);
+    }
+
+    // The background color to flatten transparency onto (PNG rows only, from the color
+    // swatch). Non-PNG rows have no picker → null (no fill needed, they have no alpha).
+    function bgColorFor(key) {
+      const picker = document.getElementById('bg-' + key);
+      return picker ? picker.value : null;
+    }
+
+    // Re-preview when the background color is changed, at the current quality.
+    function onBgChange(key) {
+      const quality = parseInt(document.getElementById('slider-' + key).value);
+      document.getElementById('est-' + key).textContent = '…';
+      clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(() => generatePreview(key, quality), 150);
+    }
+
+    // Compress this row's image at the given quality, cache the result, update the
+    // "→ N KB" estimate, and refresh the inline preview panel live if it's open.
+    // Shared by the slider (debounced) and by opening the preview panel.
+    async function generatePreview(key, quality) {
       const asset = byKey[key];
       const estEl = document.getElementById('est-' + key);
-      const quality = parseInt(document.getElementById('slider-' + key).value);
-      document.getElementById('label-' + key).textContent = quality + '%';
-      estEl.textContent = '…';
+      const bgColor = bgColorFor(key);
+      try {
+        const bytes = await ensureBytes(asset);                        // fetch original bytes from code.js on demand (cached after first fetch)
+        const result = await compressBytes(bytes, quality, bgColor);   // compress via Canvas at the chosen quality
+        const estKB = Math.round(result.bytes.length / 1024);
+        if (estEl) estEl.textContent = '→ ' + estKB + ' KB';           // show the real estimated output size
 
-      clearTimeout(debounceTimers[key]);
-      debounceTimers[key] = setTimeout(async () => {
-        try {
-          const bytes = await ensureBytes(asset);
-          const result = await compressBytes(bytes, quality);
-          const estKB = Math.round(result.bytes.length / 1024);
-          estEl.textContent = '→ ' + estKB + ' KB';
-          asset._cachedBytes = result.bytes;
-          asset._cachedDataUrl = result.dataUrl;
-          asset._cachedQuality = quality;
-        } catch (e) {
-          estEl.textContent = '⚠';
-          console.error(e);
+        // Cache the result on the asset so the preview panel and Compress (compressAsset)
+        // can reuse it. The cache key is (quality, bgColor) — both must match to reuse.
+        asset._cachedBytes = result.bytes;
+        asset._cachedDataUrl = result.dataUrl;
+        asset._cachedQuality = quality;
+        asset._cachedBg = bgColor;
+
+        refreshPreview(key);                                 // push the fresh compressed image into the open panel
+      } catch (e) {
+        if (estEl) estEl.textContent = '⚠';                  // decode/encode failed — surface a warning
+        console.error(e);
+      }
+    }
+
+    // ── Inline preview panel ────────────────────────────────────
+    // Is any row's preview panel currently open?
+    function anyPreviewOpen() {
+      return assets.some(a => {
+        const p = document.getElementById('preview-' + a.assetKey);
+        return p && p.style.display !== 'none';
+      });
+    }
+
+    // Close every open preview panel and shrink the window back to default.
+    function collapsePreviews() {
+      for (const a of assets) {
+        const p = document.getElementById('preview-' + a.assetKey);
+        if (p) p.style.display = 'none';
+        const b = document.getElementById('preview-btn-' + a.assetKey);
+        if (b) b.textContent = 'Preview';
+      }
+      resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
+      document.getElementById('collapse-btn').style.display = 'none';
+    }
+
+    // Toggle a row's side-by-side original/compressed panel open or closed.
+    function togglePreview(key) {
+      const asset = byKey[key];
+      if (!asset) return;
+      const panel = document.getElementById('preview-' + key);
+      const btn = document.getElementById('preview-btn-' + key);
+      const isOpen = panel.style.display !== 'none';
+
+      if (isOpen) {                                          // close it
+        panel.style.display = 'none';
+        btn.textContent = 'Preview';
+        // If that was the last open panel, shrink the window back down.
+        if (!anyPreviewOpen()) {
+          resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
+          document.getElementById('collapse-btn').style.display = 'none';
         }
-      }, 300);
+        return;
+      }
+
+      panel.style.display = 'flex';                          // open it
+      btn.textContent = 'Hide';
+      // Enlarge the window so the side-by-side comparison has room, and expose
+      // the Shrink button in the top bar.
+      resizePlugin(ENLARGED_SIZE.width, ENLARGED_SIZE.height);
+      document.getElementById('collapse-btn').style.display = 'block';
+
+      // Load the original lazily into the panel.
+      const origImg = document.getElementById('pv-orig-' + key);
+      ensureBytes(asset)
+        .then(bytes => { origImg.src = bytesToBlobUrl(bytes); })
+        .catch(() => { origImg.alt = '⚠'; });
+
+      // Show the compressed side: reuse the cache if it matches the current quality
+      // AND background color, otherwise kick off a compression now so the panel isn't empty.
+      const quality = parseInt(document.getElementById('slider-' + key).value);
+      if (asset._cachedDataUrl && asset._cachedQuality === quality && asset._cachedBg === bgColorFor(key)) {
+        refreshPreview(key);
+      } else {
+        document.getElementById('pv-comp-ph-' + key).textContent = 'Compressing…';
+        generatePreview(key, quality);
+      }
+    }
+
+    // Push the cached compressed image + size into a row's panel, but only if it's open.
+    function refreshPreview(key) {
+      const panel = document.getElementById('preview-' + key);
+      if (!panel || panel.style.display === 'none') return;  // panel closed — nothing to update
+
+      const asset = byKey[key];
+      const compImg = document.getElementById('pv-comp-' + key);
+      const compSize = document.getElementById('pv-comp-size-' + key);
+      const placeholder = document.getElementById('pv-comp-ph-' + key);
+
+      if (asset._cachedDataUrl) {
+        compImg.src = asset._cachedDataUrl;
+        compImg.style.display = 'block';
+        placeholder.style.display = 'none';
+        compSize.textContent = Math.round(asset._cachedBytes.length / 1024) + ' KB';
+      } else {
+        compImg.style.display = 'none';
+        placeholder.style.display = 'flex';
+        compSize.textContent = '';
+      }
     }
 
     // ── Compress (from the dashboard) ───────────────────────────
@@ -316,13 +476,20 @@
       btn.disabled = true;
       btn.textContent = 'Compressing…';
 
+      // Try to reuse the preview's compressed bytes if available, since the user just generated them by moving the slider.
+      // If the user clicks "Compress" without moving the slider, or if they moved the slider but compression failed,
+      // then we won't have these cached bytes and we'll compress here on demand.
+      // In either case we send the same message to code.js with the final compressed bytes to write them back into Figma and update the node's fill.
+      const bgColor = bgColorFor(key);
       try {
         let compressedBytes;
-        if (asset._cachedBytes && asset._cachedQuality === quality) {
+        if (asset._cachedBytes && asset._cachedQuality === quality && asset._cachedBg === bgColor) {
+          // if available and it matches the current quality + background color
           compressedBytes = asset._cachedBytes;
         } else {
+          // do it on the spot: fetch original bytes if we haven't already, and compress at the chosen quality
           const bytes = await ensureBytes(asset);
-          const result = await compressBytes(bytes, quality);
+          const result = await compressBytes(bytes, quality, bgColor);
           compressedBytes = result.bytes;
         }
         parent.postMessage({ pluginMessage: {
@@ -333,43 +500,7 @@
         btn.disabled = false;
         btn.textContent = 'Retry';
       }
-    }
-
-    // ── Preview modal ───────────────────────────────────────────
-    async function openModal(key) {
-      const asset = byKey[key];
-      if (!asset) return;
-      document.getElementById('modal-title').textContent = asset.nodeName + '  —  ' + asset.slideName;
-
-      const origEl = document.getElementById('modal-original');
-      const origSizeEl = document.getElementById('modal-original-size');
-      origEl.src = '';
-      origSizeEl.textContent = asset.sizeKB + ' KB';
-      origSizeEl.className = 'modal-size ' + (asset.sizeKB > threshold ? 'large' : 'ok');
-
-      const compEl = document.getElementById('modal-compressed');
-      const placeholder = document.getElementById('modal-placeholder');
-      if (asset._cachedDataUrl) {
-        compEl.src = asset._cachedDataUrl;
-        compEl.style.display = 'block';
-        placeholder.style.display = 'none';
-        document.getElementById('modal-compressed-size').textContent = Math.round(asset._cachedBytes.length / 1024) + ' KB';
-      } else {
-        compEl.style.display = 'none';
-        placeholder.style.display = 'flex';
-        document.getElementById('modal-compressed-size').textContent = '';
-      }
-
-      parent.postMessage({ pluginMessage: { type: 'resize', width: 1000, height: 640 } }, '*');
-      document.getElementById('modal').classList.add('open');
-
-      // Load the original at full size lazily.
-      try { origEl.src = bytesToBlobUrl(await ensureBytes(asset)); } catch (e) { /* leave blank */ }
-    }
-
-    function closeModal() {
-      document.getElementById('modal').classList.remove('open');
-      parent.postMessage({ pluginMessage: { type: 'resize', width: 400, height: 600 } }, '*');
+      resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
     }
 
     // ── Messages from code.js ───────────────────────────────────
@@ -379,10 +510,17 @@
 
       if (msg.type === 'asset') {
         const a = msg.data;
+        // If we see the same assetKey again during the same scan, just update the existing entry
+        // (e.g. if a node has multiple fills, or if the code sends a duplicate message for some reason)
+        // this is safer than replacing it with a new object which could cause issues for in-flight promises and event handlers that reference the original.
         byKey[a.assetKey] = a;
         if (a.type === 'image') assets.push(a);
         else if (a.type === 'video') videos.push(a);
-        // Re-render incrementally once scanning is done; during scan we just collect.
+        // During a scan we just collect (scanDone === false); the single render
+        // happens on 'done'. This guarded render only fires for assets that arrive
+        // AFTER 'done'. The current code.js sends every asset before 'done', so it's
+        // effectively dormant today — it's here so the UI stays correct if scanning
+        // ever becomes incremental (e.g. per-page batches or a re-sent/updated asset).
         if (scanDone) render();
       }
 
@@ -426,6 +564,8 @@
         if (sizeEl) { sizeEl.textContent = msg.newSizeKB + ' KB'; sizeEl.className = 'asset-size ok'; }
         const controls = document.getElementById('controls-' + msg.assetKey);
         if (controls) controls.style.display = 'none';
+        const preview = document.getElementById('preview-' + msg.assetKey);
+        if (preview) preview.style.display = 'none';
       }
 
       else if (msg.type === 'done') {
@@ -433,11 +573,12 @@
         document.getElementById('status').style.display = 'none';
         document.getElementById('threshold-controls').style.display = 'flex';
 
-        // Default the threshold slider's ceiling to the largest image so the
-        // range is meaningful, and clamp the current threshold into range.
+        // Default the threshold slider's ceiling to the largest image so the range is meaningful
+        // and clamp the current threshold into range.
         const maxKB = assets.reduce((m, a) => Math.max(m, a.sizeKB), 0);
         const slider = document.getElementById('threshold');
         slider.max = Math.max(500, Math.ceil(maxKB / 50) * 50);
+        // If the largest image is smaller than the default threshold, move the threshold down to just above it so something is flagged by default.
         if (threshold > slider.max) { threshold = parseInt(slider.max); slider.value = threshold; }
         document.getElementById('threshold-value').textContent = threshold + ' KB';
 
