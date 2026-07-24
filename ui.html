@@ -3,8 +3,12 @@
 <head>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 96px; font-size: 13px; background: #2b2b2b; color: #fff; }
+    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 80px; font-size: 13px; background: #2b2b2b; color: #fff; }
     h2 { font-size: 14px; margin: 0 0 12px; }
+
+
+    .col { display: flex; flex-direction: column; gap: 4px; }
+    .row { display: flex; gap: 8px; }
 
     /* Fixed top bar: scan + threshold */
     .controls {
@@ -22,39 +26,46 @@
     #idle { color: #888; font-size: 12px; padding: 24px 0; text-align: center; }
 
     /* Asset card */
-    .asset { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid #4f4f4f; }
-    .asset-head { display: flex; gap: 10px; align-items: flex-start; }
+    .asset-item { border-bottom: 1px solid #4f4f4f; padding: 12px 0; }
+    .asset { display: flex; justify-content: space-between; gap: 8px;}
+    .asset-head { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; flex: 0 0 auto; }
     .asset-thumb {
-      width: 72px; height: 54px; border-radius: 4px; object-fit: cover;
+      width: 110px; height: 80px; border-radius: 4px; object-fit: cover;
       background: #3a3a3a; flex-shrink: 0; cursor: pointer; border: 1px solid transparent;
     }
     .asset-thumb:hover { border-color: #6b9eff; }
-    .asset-meta { flex: 1; min-width: 0; }
-    .asset-name { font-size: 12px; color: #fff; display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .asset-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .asset-meta { font-size: 12px; color: #fff; display: flex; align-items: center; gap: 6px; min-width: 0; padding-bottom: 8px; }
+    .asset-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .fmt-badge {
       flex-shrink: 0; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
       padding: 1px 5px; border-radius: 3px; background: #444; color: #c7c7c7;
       text-transform: uppercase;
     }
     .fmt-badge.png { background: #5a4a1f; color: #f0c674; cursor: help; }
-    .bg-opt { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #f0c674; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
+    .bg-opt { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #fff; font-family: 'Inter'; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
     .bg-opt input[type="color"] {
       -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
-      padding: 0; border: 1px solid #666; border-radius: 3px; background: none; cursor: pointer;
+      padding: 0; border: 1px solid #666; border-radius: 99px; background: none; cursor: pointer;
     }
     .bg-opt input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
     .bg-opt input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
     .asset-slide { font-size: 11px; color: #888; margin-top: 2px; cursor: pointer; }
     .asset-slide:hover { color: #6b9eff; text-decoration: underline; }
-    .asset-size { font-size: 12px; font-weight: 600; margin-top: 4px; }
+
+    .size-label { font-size: 11px; color: #fff; }
+    .asset-size { font-size: 12px; font-weight: 600; }
     .asset-size.large { color: #e05252; }
-    .asset-size.ok { color: #c7c7c7; }
+    .asset-size.outdated { color: #9d383880; font-weight: 400; }
+
+    .est { font-size: 12px; color: #2da44e; font-weight: 600; }
+
     .arrow { font-size: 11px; color: #2da44e; }
 
     /* Slider + buttons row */
-    .controls-row { display: flex; align-items: center; gap: 8px; }
-    input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; background: transparent; }
+    .controls-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+    .estimate-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+
+    input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; background: transparent; max-width: 300px; }
     input[type="range"]::-webkit-slider-runnable-track { background: #777; height: 1px; }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%;
@@ -69,15 +80,14 @@
     #threshold::-webkit-slider-thumb { background: #6b9eff; margin-top: -5px; height: 12px; width: 12px; }
 
     .quality-label { font-size: 11px; color: #c7c7c7; min-width: 34px; }
-    .est { font-size: 11px; color: #2da44e; min-width: 56px; text-align: right; }
 
     .buttons-wrapper { display: flex; flex-direction: column; gap: 8px; }
-    .btn-group { display: flex; gap: 4px; }
+    .btn-group { display: flex; gap: 8px; justify-content: flex-end; width: 100%; }
 
-    .btn { padding: 4px 8px; font-size: 12px; color: white; background: transparent; border: 1px solid #4f4f4f; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-    .btn:hover { background: #444; }
+    .btn { padding: 4px 8px; font-size: 12px; color: white; background: transparent; border: none; border-bottom: 1px solid #4f4f4f; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn:disabled { opacity: 0.4; cursor: default; }
-    .btn.primary { border-color: #6b9eff; }
+    .btn.primary { border: 1px solid #4f4f4f; border-radius: 4px;}
+    .btn.primary:hover { background: #444; }
 
     .video-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #4f4f4f; }
     .video-thumb { width: 48px; height: 36px; border-radius: 4px; background: #222; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0; }
@@ -247,31 +257,41 @@
 
     function buildImageRow(asset) {
       const div = document.createElement('div');
-      div.className = 'asset';
+      div.className = 'asset-item';
       div.id = 'asset-' + asset.assetKey;
       const key = asset.assetKey;
       const done = asset._done;
 
       div.innerHTML = `
-        <div class="asset-head">
-          <img class="asset-thumb" id="thumb-${key}" title="Click to jump to this slide" />
-          <div class="asset-meta">
-            <div class="asset-name">
-              <span class="asset-name-text">${escapeHtml(asset.nodeName)}</span>
-              ${asset.format ? `<span class="fmt-badge ${asset.format === 'PNG' ? 'png' : ''}"${asset.format === 'PNG' ? ' title="Transparent areas may turn black when compressed to JPEG"' : ''}>${escapeHtml(asset.format)}</span>` : ''}
-            </div>
-            <div class="asset-slide" title="Jump to slide">↳ ${escapeHtml(asset.slideName)}</div>
-            <div class="asset-size ${asset.sizeKB > threshold ? 'large' : 'ok'}" id="size-${key}">${asset.sizeKB} KB</div>
-          </div>
+        <div class="asset-meta">
+          <span class="asset-name">${escapeHtml(asset.nodeName)}</span>
+          ${asset.format ? `<span class="fmt-badge ${asset.format === 'PNG' ? 'png' : ''}"${asset.format === 'PNG' ? ' title="Transparent areas may turn black when compressed to JPEG"' : ''}>${escapeHtml(asset.format)}</span>` : ''}
         </div>
-        <div class="controls-row" id="controls-${key}" style="${done ? 'display:none' : ''}">
-          <input type="range" min="10" max="100" value="100" id="slider-${key}" oninput="onSliderChange('${key}')" />
-          <span class="quality-label" id="label-${key}">100%</span>
-          <span class="est" id="est-${key}">—</span>
-          <div class="buttons-wrapper" style="gap:4px">
-            ${asset.format === 'PNG' ? `<label class="bg-opt" title="Fill transparent areas with this color so they don't turn black in JPEG">BG <input type="color" id="bg-${key}" value="#ffffff" oninput="onBgChange('${key}')" /></label>` : ''}
+        <div class="asset">
+          <div class="asset-head">
+            <img class="asset-thumb" id="thumb-${key}" title="Click to jump to this slide" />
+            <div class="asset-slide" title="Jump to slide"> ↳ Jump to slide ${escapeHtml(asset.slideName)}</div>
+          </div>
+          <div class="controls-col" id="controls-${key}" style="${done ? 'display:none' : ''}">
+            <div class="estimate-row">
+              <div class="col">
+                <span class="size-label">Original:</span>
+                <span class="asset-size ${asset.sizeKB > threshold ? 'large' : 'ok'}" id="size-${key}">${asset.sizeKB} KB</span>
+              </div>
+              <div class="col">
+                <span class="size-label">Estimated:</span>
+                <span class="est" id="est-${key}">—</span>
+              </div>
+            </div>
+            <div class="estimate-row">
+              <input type="range" min="10" max="100" value="100" id="slider-${key}" oninput="onSliderChange('${key}')" />
+              <span class="quality-label" id="label-${key}">100%</span>
+            </div>
+            <div class="estimate-row">
+              ${asset.format === 'PNG' ? `<label class="bg-opt" title="Fill transparent areas with this color so they don't turn black in JPEG">Background Color: <input type="color" id="bg-${key}" value="#ffffff" oninput="onBgChange('${key}')" /></label>` : ''}
+            </div>
             <div class="btn-group">
-              <button class="btn" id="preview-btn-${key}" onclick="togglePreview('${key}')">Preview</button>
+              <button class="btn" id="preview-btn-${key}" onclick="togglePreview('${key}')">Preview ↗</button>
               <button class="btn primary" id="btn-${key}" onclick="compressAsset('${key}')">Compress</button>
             </div>
           </div>
@@ -330,7 +350,7 @@
       // Cheap, synchronous UI updates — run on every pixel of drag so it feels live.
       document.getElementById('label-' + key).textContent = quality + '%';
       document.getElementById('est-' + key).textContent = '…';                   // loading placeholder
-
+      document.getElementById('size-' + key).classList.add('outdated');
       // Debounce the expensive work: compressing is costly (decode → canvas → re-encode),
       // so we don't run it on every tiny drag. Each call cancels the previous pending
       // timer and starts a fresh 300ms one, so compression only fires once the user
@@ -397,7 +417,7 @@
         const p = document.getElementById('preview-' + a.assetKey);
         if (p) p.style.display = 'none';
         const b = document.getElementById('preview-btn-' + a.assetKey);
-        if (b) b.textContent = 'Preview';
+        if (b) b.textContent = 'Preview ↗';
       }
       resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
       document.getElementById('collapse-btn').style.display = 'none';
