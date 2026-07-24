@@ -3,7 +3,7 @@
 <head>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 80px; font-size: 13px; background: #2b2b2b; color: #fff; }
+    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 80px; font-size: 13px; background: #2b2b2b; color: #fff; letter-spacing: 1%; }
     h2 { font-size: 14px; margin: 0 0 12px; }
 
 
@@ -32,12 +32,29 @@
     .asset-thumb {
       width: 110px; height: 80px; border-radius: 4px; object-fit: cover;
       background: #3a3a3a; flex-shrink: 0; cursor: pointer; border: 1px solid transparent;
+      display: none; /* hidden until bytes arrive, then .show toggles display:block */
     }
-    .asset-thumb:hover { border-color: #6b9eff; }
+    .asset-thumb.show {
+      display: block;
+    }
+    /* While bytes load, show a spinner and suppress the native broken-image glyph. */
+    .asset-loading {
+      width: 110px; height: 80px; border-radius: 4px; flex-shrink: 0;
+      background: #3a3a3a; position: relative; overflow: hidden;
+    }
+    .asset-loading::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(120deg, transparent 25%, #484848 50%, transparent 75%);
+      transform: translateX(-100%);
+      animation: shimmer 1s linear infinite;
+    }
+    .asset-loading.hide { display: none; }
+    @keyframes shimmer { to { transform: translateX(100%); } }
+
     .asset-meta { font-size: 12px; color: #fff; display: flex; align-items: center; gap: 6px; min-width: 0; padding-bottom: 8px; }
     .asset-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .fmt-badge {
-      flex-shrink: 0; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+      flex-shrink: 0; font-size: 9px; font-weight: 600; letter-spacing: 1%;
       padding: 1px 5px; border-radius: 3px; background: #444; color: #c7c7c7;
       text-transform: uppercase;
     }
@@ -49,8 +66,8 @@
     }
     .bg-opt input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
     .bg-opt input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
-    .asset-slide { font-size: 11px; color: #888; margin-top: 2px; cursor: pointer; }
-    .asset-slide:hover { color: #6b9eff; text-decoration: underline; }
+    .asset-slide { font-size: 11px; color: #888; margin-top: 2px; cursor: pointer;}
+    .asset-slide:hover { color: #fff; }
 
     .size-label { font-size: 11px; color: #fff; }
     .asset-size { font-size: 12px; font-weight: 600; }
@@ -93,7 +110,7 @@
     .video-thumb { width: 48px; height: 36px; border-radius: 4px; background: #222; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0; }
     .video-info .name { font-size: 12px; color: #c7c7c7; }
     .video-info .meta { font-size: 11px; color: #666; margin-top: 2px; }
-    .section-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 0 4px; }
+    .section-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1%; padding: 16px 0 4px; }
 
     /* ── Inline preview panel (expands inside a row) ── */
     .preview { display: flex; gap: 8px; padding-top: 8px; }
@@ -269,6 +286,7 @@
         </div>
         <div class="asset">
           <div class="asset-head">
+            <div class="asset-loading" id="asset-loading-${key}" title="Click to jump to this slide"></div>
             <img class="asset-thumb" id="thumb-${key}" title="Click to jump to this slide" />
             <div class="asset-slide" title="Jump to slide"> ↳ Jump to slide ${escapeHtml(asset.slideName)}</div>
           </div>
@@ -312,14 +330,18 @@
       `;
 
       // Thumbnail: fetch bytes lazily, and clicking it (or the slide label) navigates.
+      const loading = div.querySelector('#asset-loading-' + CSS.escape(key));
       const thumb = div.querySelector('#thumb-' + CSS.escape(key));
       const nav = () => parent.postMessage({ pluginMessage: { type: 'navigate', nodeId: asset.nodeId } }, '*');
       thumb.onclick = nav;
       div.querySelector('.asset-slide').onclick = nav;
 
+      // Spinner (.loading) stays until bytes arrive; onload swaps it for the image,
+      // a failure swaps it for a visible warning glyph.
+      thumb.onload = () => {thumb.classList.add('show') ; loading.classList.add('hide'); };
       ensureBytes(asset)
         .then(bytes => { thumb.src = bytesToBlobUrl(bytes); })
-        .catch(() => { thumb.alt = '⚠'; });
+        .catch(() => { loading.classList.add('hide'); thumb.classList.add('show'); thumb.alt = '⚠'; });
 
       return div;
     }
