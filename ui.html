@@ -79,7 +79,7 @@
     .arrow { font-size: 11px; color: #2da44e; }
 
     /* Slider + buttons row */
-    .controls-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+    .controls-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; max-width: 346px; }
     .estimate-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
 
     input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; background: transparent; max-width: 300px; }
@@ -138,8 +138,8 @@
     </div>
     <div class="threshold-row" id="threshold-controls" style="display:none">
       <label>Flag images over</label>
-      <input type="range" id="threshold" min="0" max="2000" value="500" step="50" oninput="onThresholdChange()" />
-      <span class="threshold-value" id="threshold-value">500 KB</span>
+      <input type="range" id="threshold" min="0" max="2000" value="2000" step="50" oninput="onThresholdChange()" />
+      <span class="threshold-value" id="threshold-value">2000 KB</span>
     </div>
   </div>
 
@@ -157,7 +157,7 @@
     const byKey = {};                 // assetKey -> asset
     const pendingBytes = {};          // assetKey -> { resolve, reject } for in-flight getBytes
     const debounceTimers = {};
-    let threshold = 2000;              // KB
+    let threshold = 2000;              // KB — must match the slider's value="" in the markup
     let scanDone = false;
 
     // Plugin window sizes: default (dashboard only) and enlarged (while a preview is open).
@@ -543,6 +543,7 @@
         btn.textContent = 'Retry';
       }
       resizePlugin(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
+      document.getElementById('collapse-btn').style.display = 'none';
     }
 
     // ── Messages from code.js ───────────────────────────────────
@@ -620,8 +621,10 @@
         const maxKB = assets.reduce((m, a) => Math.max(m, a.sizeKB), 0);
         const slider = document.getElementById('threshold');
         slider.max = Math.max(500, Math.ceil(maxKB / 50) * 50);
-        // If the largest image is smaller than the default threshold, move the threshold down to just above it so something is flagged by default.
-        if (threshold > slider.max) { threshold = parseInt(slider.max); slider.value = threshold; }
+        // If the largest image is smaller than the default threshold, move the threshold down to the
+        // new ceiling so something is flagged by default. Always re-sync the thumb and the label.
+        threshold = Math.min(threshold, parseInt(slider.max));
+        slider.value = threshold;
         document.getElementById('threshold-value').textContent = threshold + ' KB';
 
         if (assets.length === 0 && videos.length === 0) {
