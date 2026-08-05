@@ -1,8 +1,16 @@
 {
-  "name": "Assets Inspector and Resizer",
-  "id": "assets-inspector-dev",
+  "name": "Grow Asset Inspector",
+  "id": "1666915038554910852",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
-  "editorType": ["figma", "figjam", "slides"]
+  "editorType": [
+    "figma",
+    "figjam",
+    "slides"
+  ],
+  "networkAccess": {
+    "allowedDomains": "none"
+  },
+  "documentAccess": "dynamic-page"
 }
