@@ -1,5 +1,5 @@
 {
-  "name": "Grow Asset Inspector",
+  "name": "Grow Asset Inspector and Resizer",
   "id": "1666915038554910852",
   "api": "1.0.0",
   "main": "code.js",
@@ -10,7 +10,7 @@
     "slides"
   ],
   "networkAccess": {
-    "allowedDomains": "none"
+    "allowedDomains": ["none"]
   },
   "documentAccess": "dynamic-page"
 }
