@@ -81,6 +81,7 @@
     /* Slider + buttons row */
     .controls-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; max-width: 346px; }
     .estimate-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+    .estimate-row-slider { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; width: 100%; }
 
     input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; background: transparent; max-width: 300px; }
     input[type="range"]::-webkit-slider-runnable-track { background: #777; height: 1px; }
@@ -302,9 +303,11 @@
                 <span class="est" id="est-${key}">—</span>
               </div>
             </div>
-            <div class="estimate-row">
+            <div class="estimate-row-slider">
+              <div class="row">
+                <label class="size-label" for="slider-${key}">Compression Quality:</label> <span class="quality-label" id="label-${key}">100%</span>
+              </div>
               <input type="range" min="10" max="100" value="100" id="slider-${key}" oninput="onSliderChange('${key}')" />
-              <span class="quality-label" id="label-${key}">100%</span>
             </div>
             <div class="estimate-row">
               ${asset.format === 'PNG' ? `<label class="bg-opt" title="Fill transparent areas with this color so they don't turn black in JPEG">Background Color: <input type="color" id="bg-${key}" value="#ffffff" oninput="onBgChange('${key}')" /></label>` : ''}
