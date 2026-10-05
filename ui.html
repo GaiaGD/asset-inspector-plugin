@@ -3,7 +3,7 @@
 <head>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 80px; font-size: 13px; background: #2b2b2b; color: #fff; letter-spacing: 1%; }
+    body { font-family: 'Inter', sans-serif; margin: 0; padding: 12px; padding-top: 100px; font-size: 13px; background: #2b2b2b; color: #fff; letter-spacing: 1%; }
     h2 { font-size: 14px; margin: 0 0 12px; }
 
 
@@ -20,6 +20,7 @@
     .threshold-row { display: flex; align-items: center; gap: 8px; }
     .threshold-row label { font-size: 11px; color: #888; white-space: nowrap; }
     .threshold-value { font-size: 11px; color: #c7c7c7; min-width: 62px; text-align: right; font-weight: 600; }
+    .sort-select { font-size: 11px; background: #2c2c2c; color: #c7c7c7; border: 1px solid #444; border-radius: 4px; padding: 2px 4px; }
 
     #summary { flex: 1; font-size: 12px; color: #c7c7c7; }
     #status { color: #c7c7c7; font-size: 12px; padding: 12px 0 4px; }
@@ -143,6 +144,13 @@
       <input type="range" id="threshold" min="0" max="2000" value="2000" step="50" oninput="onThresholdChange()" />
       <span class="threshold-value" id="threshold-value">2000 KB</span>
     </div>
+    <div class="threshold-row" id="sort-list" style="display:none">
+      <label for="sort-by">Sort by</label>
+      <select id="sort-by" class="sort-select" onchange="onSortChange()">
+        <option value="size">Size</option>
+        <option value="slide">Slide order</option>
+      </select>
+    </div>
   </div>
 
   <div id="status" style="display:none"></div>
@@ -161,6 +169,7 @@
     const debounceTimers = {};
     let threshold = 2000;              // KB — must match the slider's value="" in the markup
     let scanDone = false;
+    let sortBy = 'size';               // 'size' (biggest first) or 'slide' (file order) — must match the select's first option
 
     // Plugin window sizes: default (dashboard only) and enlarged (while a preview is open).
     const DEFAULT_SIZE = { width: 400, height: 600 };
@@ -209,7 +218,7 @@
             if (!outBlob) { URL.revokeObjectURL(url); reject(new Error('Canvas encode failed')); return; }
             outBlob.arrayBuffer().then(buf => {
               URL.revokeObjectURL(url);
-              const compressedBytes = Array.from(new Uint8Array(buf));
+              const compressedBytes = new Uint8Array(buf);
               const reader = new FileReader();
               reader.onload = (e) => resolve({ bytes: compressedBytes, dataUrl: e.target.result });
               reader.readAsDataURL(outBlob);
@@ -234,6 +243,7 @@
       document.getElementById('list').innerHTML = '';
       document.getElementById('idle').style.display = 'none';
       document.getElementById('threshold-controls').style.display = 'none';
+      document.getElementById('sort-list').style.display = 'none';
       document.getElementById('summary').textContent = '';
       document.getElementById('status').style.display = 'block';
       // TODO: better UI to indicate incremental progress during scan, especially for large files; right now we just show a static message until the end.
@@ -251,14 +261,21 @@
       render();
     }
 
-    // ── Render the filtered, size-sorted list ──────────────
+    function onSortChange() {
+      sortBy = document.getElementById('sort-by').value;
+      render();
+    }
+
+    // ── Render the filtered, sorted list ──────────────
     function render() {
       const list = document.getElementById('list');
       list.innerHTML = '';
 
       const flaggedLargeImages = assets
         .filter(a => a.sizeKB > threshold)
-        .sort((a, b) => b.sizeKB - a.sizeKB);
+        .sort(sortBy === 'slide'
+          ? (a, b) => a.order - b.order       // order the scan found them in = slide order
+          : (a, b) => b.sizeKB - a.sizeKB);   // biggest first
 
       document.getElementById('summary').textContent =
         `${flaggedLargeImages.length} of ${assets.length} image${assets.length !== 1 ? 's' : ''} over ${threshold} KB`;
@@ -561,7 +578,7 @@
         // (e.g. if a node has multiple fills, or if the code sends a duplicate message for some reason)
         // this is safer than replacing it with a new object which could cause issues for in-flight promises and event handlers that reference the original.
         byKey[a.assetKey] = a;
-        if (a.type === 'image') assets.push(a);
+        if (a.type === 'image') { a.order = assets.length; assets.push(a); }
         else if (a.type === 'video') videos.push(a);
         // During a scan we just collect (scanDone === false); the single render
         // happens on 'done'. This guarded render only fires for assets that arrive
@@ -619,6 +636,7 @@
         scanDone = true;
         document.getElementById('status').style.display = 'none';
         document.getElementById('threshold-controls').style.display = 'flex';
+        document.getElementById('sort-list').style.display = 'flex';
 
         // Default the threshold slider's ceiling to the largest image so the range is meaningful
         // and clamp the current threshold into range.
